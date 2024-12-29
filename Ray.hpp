@@ -22,15 +22,15 @@ Ray::Ray(glm::vec3 start, glm::vec3 dir)
 	m_dir = dir;
 }
 
-glm::vec3 Ray::get_start() {
+inline glm::vec3 Ray::get_start() {
 	return m_start;
 }
 
-glm::vec3 Ray::get_dir() {
+inline glm::vec3 Ray::get_dir() {
 	return m_dir;
 }
 
-glm::vec3 Ray::get_point(float t) {
+inline glm::vec3 Ray::get_point(float t) {
 	return m_start + t*m_dir;
 }
 

@@ -15,6 +15,7 @@ class Shader
 public:
 	unsigned ID;
 	Shader(const char* vertexPath, const char* fragmentPath);
+	Shader(const char* computePath);
 	~Shader();
 	void use();
 	void setBool(const std::string& name, bool value) const;
@@ -81,7 +82,7 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath)
 	glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
 	if (!success)
 	{
-		glGetShaderInfoLog(vertex, 512, NULL, infoLog);
+		glGetShaderInfoLog(fragment, 512, NULL, infoLog);
 		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
 	};
 
@@ -100,6 +101,61 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath)
 	// Delete shaders since they're already linked to the program
 	glDeleteShader(vertex);
 	glDeleteShader(fragment);
+}
+
+Shader::Shader(const char* computePath)
+{
+	std::string computeCode;
+	std::ifstream cShaderFile;
+
+	// Ensure ifstream objects can throw exceptions
+	cShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+	try {
+		// Open files
+		cShaderFile.open(computePath);
+
+		// Read file content into stream
+		std::stringstream cShaderStream;
+		cShaderStream << cShaderFile.rdbuf();
+		cShaderFile.close();
+		computeCode = cShaderStream.str();
+	}
+	catch (std::ifstream::failure e) {
+		std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+	}
+
+	const char* cShaderCode = computeCode.c_str();
+
+	// Compile shaders
+	unsigned compute;
+	int success;
+	char infoLog[512];
+
+	// CS
+	compute = glCreateShader(GL_COMPUTE_SHADER);
+	glShaderSource(compute, 1, &cShaderCode, NULL);
+	glCompileShader(compute);
+	glGetShaderiv(compute, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(compute, 512, NULL, infoLog);
+		std::cout << "ERROR::SHADER::COMPUTE::COMPILATION_FAILED\n" << infoLog << std::endl;
+	};
+
+	// Shader program
+	ID = glCreateProgram();
+	glAttachShader(ID, compute);
+	glLinkProgram(ID);
+	glGetProgramiv(ID, GL_LINK_STATUS, &success);
+	if (!success)
+	{
+		glGetProgramInfoLog(ID, 512, NULL, infoLog);
+		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+	}
+
+	// Delete shaders since they're already linked to the program
+	glDeleteShader(compute);
 }
 
 Shader::~Shader()

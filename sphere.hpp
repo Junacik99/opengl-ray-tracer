@@ -1,0 +1,57 @@
+#ifndef SPHERE_H
+#define SPHERE_H
+
+#include <glm/glm.hpp>
+#include "ray.hpp"
+#include "intersection.hpp"
+
+class Sphere
+{
+public:
+	Sphere(glm::vec3 center, float radius);
+	~Sphere();
+	glm::vec3 get_normal(glm::vec3 position);
+	Intersection get_intersection(Ray ray);
+
+
+private:
+	glm::vec3 m_center;
+	float m_radius;
+};
+
+Sphere::Sphere(glm::vec3 center, float radius)
+{
+	m_center = center;
+	m_radius = radius;
+}
+
+Sphere::~Sphere()
+{
+}
+
+inline glm::vec3 Sphere::get_normal(glm::vec3 position) {
+	return glm::normalize(position - m_center);
+}
+
+inline Intersection Sphere::get_intersection(Ray ray) {
+	auto start = ray.get_start();
+	auto dir = ray.get_dir();
+
+	float aa = glm::dot(dir, dir);
+	float bb = 2 * (glm::dot(dir, start - m_center));
+	float cc = glm::dot(start - m_center, start - m_center) - m_radius * m_radius;
+	float D = bb * bb - 4 * aa * cc;
+	if (D > 0) {
+		float sD = sqrt(D);
+		float t1 = (-bb - sD) / (2 * aa);
+		if (t1 > 0) // Inner intersection
+			return Intersection(INNER, ray.get_point(t1));
+		float t2 = (-bb + sD) / (2 * aa);
+		if (t2 > 0) // Outer intersection
+			return Intersection(OUTER, ray.get_point(t2));
+	}
+
+	return Intersection(NONE); // return empty vector if no intersection
+}
+
+#endif // !SPHERE_H

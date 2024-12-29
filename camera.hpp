@@ -4,6 +4,7 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "ray.hpp"
 
 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
@@ -39,9 +40,11 @@ public:
     float MovementSpeed;
     float MouseSensitivity;
     float Zoom;
+    float fov;              // Field of view in degrees
+    float aspectRatio;      // Aspect ratio (width / height)
 
     // constructor with vectors
-    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+    Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH, float fovDeg = 60, float aspect = 1) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM), fov(fovDeg), aspectRatio(aspect)
     {
         Position = position;
         WorldUp = up;
@@ -50,7 +53,7 @@ public:
         updateCameraVectors();
     }
     // constructor with scalar values
-    Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+    Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch, float fovDeg = 60, float aspect = 1) : Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM), fov(fovDeg), aspectRatio(aspect)
     {
         Position = glm::vec3(posX, posY, posZ);
         WorldUp = glm::vec3(upX, upY, upZ);
@@ -109,6 +112,21 @@ public:
             Zoom = 1.0f;
         if (Zoom > 45.0f)
             Zoom = 45.0f;
+    }
+
+    Ray GetRay(float ndcX, float ndcY) const {
+        // Convert normalized device coordinates (NDC) to the image plane
+        float imagePlaneHeight = 2.0f * tan(glm::radians(fov / 2.0f));
+        float imagePlaneWidth = imagePlaneHeight * aspectRatio;
+
+        glm::vec3 imagePlanePoint = Position
+            + Front                               // Move forward to the image plane
+            + (ndcX * imagePlaneWidth / 2.0f) * Right // Scale x direction
+            + (ndcY * imagePlaneHeight / 2.0f) * Up;  // Scale y direction
+
+        // Compute the direction of the ray
+        glm::vec3 rayDirection = glm::normalize(imagePlanePoint - Position);
+        return Ray(Position, rayDirection);
     }
 
 private:

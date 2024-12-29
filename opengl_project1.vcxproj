@@ -140,9 +140,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.hpp" />
+    <ClInclude Include="intersection.hpp" />
+    <ClInclude Include="plane.hpp" />
+    <ClInclude Include="ray.hpp" />
     <ClInclude Include="shader.hpp" />
+    <ClInclude Include="sphere.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shader.comp" />
     <None Include="shader.frag" />
     <None Include="shader.vert" />
   </ItemGroup>

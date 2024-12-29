@@ -12,6 +12,9 @@
     <Filter Include="Source Files\shaders">
       <UniqueIdentifier>{d2ecad3c-792e-442f-b3b7-d82ca5eabff8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\src">
+      <UniqueIdentifier>{09cab1f2-aab6-4b5c-b04b-49b3da7eaa2e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -31,12 +34,29 @@
     <None Include="shader.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
+    <None Include="shader.comp">
+      <Filter>Source Files\shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="shader.hpp">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="sphere.hpp">
+      <Filter>Source Files\src</Filter>
     </ClInclude>
-    <ClInclude Include="camera.hpp" />
+    <ClInclude Include="shader.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="ray.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="plane.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="intersection.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="camera.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="textures\container.jpg">
