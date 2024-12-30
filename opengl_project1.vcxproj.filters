@@ -57,6 +57,9 @@
     <ClInclude Include="camera.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
+    <ClInclude Include="computeShader.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="textures\container.jpg">

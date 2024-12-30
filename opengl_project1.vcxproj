@@ -140,6 +140,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.hpp" />
+    <ClInclude Include="computeShader.hpp" />
     <ClInclude Include="intersection.hpp" />
     <ClInclude Include="plane.hpp" />
     <ClInclude Include="ray.hpp" />
