@@ -20,56 +20,56 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\Martin\Documents\libraries\glad\src\glad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="stb_img_implementation.cpp">
+    <ClCompile Include="src\stb_img_implementation.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shader.vert">
+    <None Include="src\shaders\shader.vert">
       <Filter>Source Files\shaders</Filter>
     </None>
-    <None Include="shader.frag">
+    <None Include="src\shaders\shader.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
-    <None Include="shader.comp">
+    <None Include="src\shaders\shader.comp">
       <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="shader.hpp">
+    <ClInclude Include="src\shader.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
-    <ClInclude Include="ray.hpp">
+    <ClInclude Include="src\ray.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
-    <ClInclude Include="intersection.hpp">
+    <ClInclude Include="src\intersection.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
-    <ClInclude Include="camera.hpp">
+    <ClInclude Include="src\camera.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
-    <ClInclude Include="computeShader.hpp">
+    <ClInclude Include="src\computeShader.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
-    <ClInclude Include="plane.hpp">
+    <ClInclude Include="src\shapes\plane.hpp">
       <Filter>Source Files\src\shapes</Filter>
     </ClInclude>
-    <ClInclude Include="sphere.hpp">
+    <ClInclude Include="src\shapes\sphere.hpp">
       <Filter>Source Files\src\shapes</Filter>
     </ClInclude>
-    <ClInclude Include="light.hpp">
+    <ClInclude Include="src\light.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
-    <ClInclude Include="shape.hpp">
+    <ClInclude Include="src\shapes\shape.hpp">
       <Filter>Source Files\src\shapes</Filter>
     </ClInclude>
-    <ClInclude Include="material.hpp">
+    <ClInclude Include="src\material.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
   </ItemGroup>

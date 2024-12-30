@@ -135,25 +135,25 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="C:\Users\Martin\Documents\libraries\glad\src\glad.c" />
-    <ClCompile Include="stb_img_implementation.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="src\stb_img_implementation.cpp" />
+    <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="camera.hpp" />
-    <ClInclude Include="computeShader.hpp" />
-    <ClInclude Include="intersection.hpp" />
-    <ClInclude Include="light.hpp" />
-    <ClInclude Include="material.hpp" />
-    <ClInclude Include="plane.hpp" />
-    <ClInclude Include="ray.hpp" />
-    <ClInclude Include="shader.hpp" />
-    <ClInclude Include="shape.hpp" />
-    <ClInclude Include="sphere.hpp" />
+    <ClInclude Include="src\camera.hpp" />
+    <ClInclude Include="src\computeShader.hpp" />
+    <ClInclude Include="src\intersection.hpp" />
+    <ClInclude Include="src\light.hpp" />
+    <ClInclude Include="src\material.hpp" />
+    <ClInclude Include="src\shapes\plane.hpp" />
+    <ClInclude Include="src\ray.hpp" />
+    <ClInclude Include="src\shader.hpp" />
+    <ClInclude Include="src\shapes\shape.hpp" />
+    <ClInclude Include="src\shapes\sphere.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shader.comp" />
-    <None Include="shader.frag" />
-    <None Include="shader.vert" />
+    <None Include="src\shaders\shader.comp" />
+    <None Include="src\shaders\shader.frag" />
+    <None Include="src\shaders\shader.vert" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="textures\awesomeface.png" />
