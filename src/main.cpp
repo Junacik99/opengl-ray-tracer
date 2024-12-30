@@ -8,8 +8,8 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "camera.hpp"
 #include "ray.hpp"
-#include "sphere.hpp"
-#include "plane.hpp"
+#include "shapes/sphere.hpp"
+#include "shapes/plane.hpp"
 #include "computeShader.hpp"
 #include <vector>
 #include "material.hpp"
@@ -113,14 +113,14 @@ int main(void)
 	glBindImageTexture(0, texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
 
 	// Compute shader (cannot be used with others)
-	ComputeShader computeShader("shader.comp");
+	ComputeShader computeShader("src/shaders/shader.comp");
 
 	// Texture buffer
 	std::vector<float> pixelData(WIDTH * HEIGHT * 4, 0.0f); // Initialize to 0
 
 
 	// VS and FS for screen quad
-	Shader screenQuad("shader.vert", "shader.frag");
+	Shader screenQuad("src/shaders/shader.vert", "src/shaders/shader.frag");
 
 	/* Camera */
 	camera = Camera();

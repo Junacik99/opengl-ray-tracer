@@ -2,8 +2,8 @@
 #define SPHERE_H
 
 #include <glm/glm.hpp>
-#include "ray.hpp"
-#include "intersection.hpp"
+#include "../ray.hpp"
+#include "../intersection.hpp"
 #include "shape.hpp"
 
 class Sphere : public Shape

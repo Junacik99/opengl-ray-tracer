@@ -2,7 +2,7 @@
 #define SHAPE_H
 
 #include <glm/glm.hpp>
-#include "material.hpp"
+#include "../material.hpp"
 
 class Shape
 {

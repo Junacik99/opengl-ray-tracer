@@ -2,8 +2,9 @@
 #define PLANE_H
 
 #include<glm/glm.hpp>
-#include "ray.hpp"
-#include "intersection.hpp"
+#include "../ray.hpp"
+#include "../intersection.hpp"
+#include "shape.hpp"
 
 class Plane : public Shape
 {
