@@ -12,6 +12,8 @@
 #include "plane.hpp"
 #include "computeShader.hpp"
 #include <vector>
+#include "material.hpp"
+#include "light.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -37,8 +39,30 @@ Camera camera;
 float deltaTime = 0.0f;	// Time between current frame and last frame
 float lastFrame = 0.0f; // Time of last frame
 
-glm::vec3 phong(glm::vec3 point, glm::vec3 normal, ) {
-	return glm::vec3();
+glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material) {
+
+	// Material properties
+	float ambientStrength = material.ambientStrength;
+	float diffuseStrength = material.diffuseStrength; 
+	float specularStrength = material.specularStrength; 
+	int shininess = material.shininess;
+
+	// Ambient component
+	glm::vec3 ambient = ambientStrength * lightColor;
+
+	// Diffuse component
+	glm::vec3 lightDir = glm::normalize(lightPos - point); // Direction from point to light source
+	float diff = glm::max(glm::dot(normal, lightDir), 0.0f);
+	glm::vec3 diffuse = diffuseStrength * diff * lightColor;
+
+	// Specular component
+	glm::vec3 reflectDir = glm::reflect(-lightDir, normal); // Reflection direction
+	float spec = glm::pow(glm::max(glm::dot(viewDir, reflectDir), 0.0f), shininess);
+	glm::vec3 specular = specularStrength * spec * lightColor;
+
+	// Combine results
+	glm::vec3 result = (ambient + diffuse + specular) * objectColor;
+	return result;
 }
 
 
@@ -106,18 +130,33 @@ int main(void)
 
 
 	/* Scene */
+	// add light
+	Light light = Light(glm::vec3(0, -15, 0), glm::vec3(1));
+
 	// add shapes
 	std::vector<std::unique_ptr<Shape>> shapes;
 	shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
 	shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-10, -10, -25)));
+	shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(10, -10, -25)));
+	shapes[2]->color = glm::vec3(1, 0, 0);
+	for (int i = 0; i < 10; ++i) {
+		auto pos = glm::vec3(rand() % 21-10, rand() % 41-20, (rand() % 150 + 10) * (-1));
+		shapes.push_back(std::make_unique<Sphere>(pos, 5.f));
+		shapes[i + 3]->color = glm::vec3(((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX);
+	}
 
 
 
 	/* Render loop */
 	while (!glfwWindowShouldClose(window)) {
+		float currentFrame = glfwGetTime();
+		deltaTime = currentFrame - lastFrame;
+		lastFrame = currentFrame;
+
 		// Input
 		processInput(window);
 
+		/***********************************************************************************************/
 		// Calculate ray hits
 		for (int y = 0; y < HEIGHT; ++y) {
 			for (int x = 0; x < WIDTH; ++x) {
@@ -129,7 +168,7 @@ int main(void)
 				for (const auto& shape : shapes) {
 					// Trace ray
 					auto s_hit = shape->get_intersection(ray);
-					if (s_hit.intersect_type != NONE) { // Hit!
+					if (s_hit.intersect_type == INNER) { // Hit!
 						float dist = glm::distance(ray.get_start(), s_hit.hit_point);
 						if (dist < closestDist) {
 							closestDist = dist;
@@ -137,12 +176,10 @@ int main(void)
 							auto point = s_hit.hit_point;
 							auto normal = shape->get_normal(point);
 
-							// TODO: Calculate lighting (Phong)
-
-							color = shape->color;
+							// Calculate lighting (Phong)
+							color = phong(point, normal, ray.get_dir(), shape->color, light.position, light.color, shape->material);
 						}
 					}
-
 					// Set color pixel in fragment shader
 					int idx = (y * WIDTH + x) * 4;
 					pixelData[idx + 0] = color.r;
@@ -152,6 +189,7 @@ int main(void)
 				}
 			}
 		}
+		/***********************************************************************************************/
 
 
 		// Compute shader dispatch
