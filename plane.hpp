@@ -5,13 +5,14 @@
 #include "ray.hpp"
 #include "intersection.hpp"
 
-class Plane
+class Plane : public Shape
 {
 public:
 	Plane(glm::vec3 normal, glm::vec3 point);
 	~Plane();
-	glm::vec3 get_normal();
-	Intersection get_intersection(Ray ray);
+	glm::vec3 get_normal(glm::vec3 position) const override;
+	Intersection get_intersection(Ray ray) const override;
+
 
 
 private:
@@ -23,18 +24,19 @@ Plane::Plane(glm::vec3 normal, glm::vec3 point)
 {
 	m_normal = glm::normalize(normal);
 	d = -(glm::dot(m_normal, point));
+	color = glm::vec3(0, 0, 1);
 }
 
 Plane::~Plane()
 {
 }
 
-inline glm::vec3 Plane::get_normal()
+inline glm::vec3 Plane::get_normal(glm::vec3 position) const
 {
 	return m_normal;
 }
 
-inline Intersection Plane::get_intersection(Ray ray)
+inline Intersection Plane::get_intersection(Ray ray) const
 {
 	float np = glm::dot(m_normal, ray.get_dir());
 	if (np == 0)

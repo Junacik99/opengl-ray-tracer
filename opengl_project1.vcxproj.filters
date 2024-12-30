@@ -15,6 +15,9 @@
     <Filter Include="Source Files\src">
       <UniqueIdentifier>{09cab1f2-aab6-4b5c-b04b-49b3da7eaa2e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\src\shapes">
+      <UniqueIdentifier>{3ef3acb0-d8f3-4b9d-a45a-47032b0733bc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -39,16 +42,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="sphere.hpp">
-      <Filter>Source Files\src</Filter>
-    </ClInclude>
     <ClInclude Include="shader.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
     <ClInclude Include="ray.hpp">
-      <Filter>Source Files\src</Filter>
-    </ClInclude>
-    <ClInclude Include="plane.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
     <ClInclude Include="intersection.hpp">
@@ -59,6 +56,18 @@
     </ClInclude>
     <ClInclude Include="computeShader.hpp">
       <Filter>Source Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="plane.hpp">
+      <Filter>Source Files\src\shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="sphere.hpp">
+      <Filter>Source Files\src\shapes</Filter>
+    </ClInclude>
+    <ClInclude Include="light.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="shape.hpp">
+      <Filter>Source Files\src\shapes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

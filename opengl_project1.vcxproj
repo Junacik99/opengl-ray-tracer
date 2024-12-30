@@ -142,9 +142,11 @@
     <ClInclude Include="camera.hpp" />
     <ClInclude Include="computeShader.hpp" />
     <ClInclude Include="intersection.hpp" />
+    <ClInclude Include="light.hpp" />
     <ClInclude Include="plane.hpp" />
     <ClInclude Include="ray.hpp" />
     <ClInclude Include="shader.hpp" />
+    <ClInclude Include="shape.hpp" />
     <ClInclude Include="sphere.hpp" />
   </ItemGroup>
   <ItemGroup>

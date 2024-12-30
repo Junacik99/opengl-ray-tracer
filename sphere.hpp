@@ -4,14 +4,15 @@
 #include <glm/glm.hpp>
 #include "ray.hpp"
 #include "intersection.hpp"
+#include "shape.hpp"
 
-class Sphere
+class Sphere : public Shape
 {
 public:
 	Sphere(glm::vec3 center, float radius);
 	~Sphere();
-	glm::vec3 get_normal(glm::vec3 position);
-	Intersection get_intersection(Ray ray);
+	glm::vec3 get_normal(glm::vec3 position) const override;
+	Intersection get_intersection(Ray ray) const override;
 
 
 private:
@@ -23,17 +24,18 @@ Sphere::Sphere(glm::vec3 center, float radius)
 {
 	m_center = center;
 	m_radius = radius;
+	color = glm::vec3(0, 1, 0);
 }
 
 Sphere::~Sphere()
 {
 }
 
-inline glm::vec3 Sphere::get_normal(glm::vec3 position) {
+inline glm::vec3 Sphere::get_normal(glm::vec3 position) const {
 	return glm::normalize(position - m_center);
 }
 
-inline Intersection Sphere::get_intersection(Ray ray) {
+inline Intersection Sphere::get_intersection(Ray ray) const {
 	auto start = ray.get_start();
 	auto dir = ray.get_dir();
 

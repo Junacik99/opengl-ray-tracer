@@ -1,12 +1,13 @@
 #version 430
-layout(local_size_x = 1, local_size_y = 1) in;
-layout(rgba32f, binding = 0) uniform image2D img;
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) uniform image2D imgOutput;
 
 void main() {
-    ivec2 pixelCoords = ivec2(gl_GlobalInvocationID.xy);
-
-    // Set a specific pixel to red
-    if (pixelCoords.x > 400 && pixelCoords.y > 400) {
-        imageStore(img, pixelCoords, vec4(1.0, 0.0, 0.0, 1.0));
-    }
+    vec4 value = vec4(1.0, 0.0, 0.0, 1.0);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+	
+    value.x = float(texelCoord.x)/(gl_NumWorkGroups.x);
+    value.y = float(texelCoord.y)/(gl_NumWorkGroups.y);
+	
+    imageStore(imgOutput, texelCoord, value);
 }
