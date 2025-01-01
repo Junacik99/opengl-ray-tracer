@@ -11,17 +11,22 @@
 #include "glm/gtc/type_ptr.hpp"
 #include "camera.hpp"
 #include "ray.hpp"
+#include "shapes/shape.hpp"
 #include "shapes/sphere.hpp"
 #include "shapes/plane.hpp"
 #include "computeShader.hpp"
 #include <vector>
 #include "material.hpp"
 #include "light.hpp"
+#include <glm/gtx/string_cast.hpp>
+#include "shapes/flatShape.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void renderQuad();
+glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material);
+
 
 // Window size
 const int WIDTH = 800;
@@ -29,45 +34,64 @@ const int HEIGHT = 600;
 
 bool wireframe = false;
 bool zKeyPressed = false;
+bool rtxon = false;
 
 
 /* Camera */
 // Camera axes
 float lastX = WIDTH/2, lastY = HEIGHT/2; // Set cursor to the center
 bool firstMouse = true;
-Camera camera;
 
 
 // Frame inference computation
 float deltaTime = 0.0f;	// Time between current frame and last frame
 float lastFrame = 0.0f; // Time of last frame
 
-glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material) {
+struct Scene
+{
+	Camera camera;
+	Light light;
+	std::vector < std::unique_ptr< Shape >> shapes;
+} scene;
 
-	// Material properties
-	float ambientStrength = material.ambientStrength;
-	float diffuseStrength = material.diffuseStrength; 
-	float specularStrength = material.specularStrength; 
-	int shininess = material.shininess;
+struct FlatScene {
+	Camera camera;
+	Light light;
+	std::vector <FlatShape> shapes;
+};
 
-	// Ambient component
-	glm::vec3 ambient = ambientStrength * lightColor;
+FlatScene serializeScene(const Scene& scene) {
+	FlatScene flatScene;
 
-	// Diffuse component
-	glm::vec3 lightDir = glm::normalize(lightPos - point); // Direction from point to light source
-	float diff = glm::max(glm::dot(normal, lightDir), 0.0f);
-	glm::vec3 diffuse = diffuseStrength * diff * lightColor;
+	flatScene.camera = scene.camera;
+	flatScene.light = scene.light;
+	
+	std::vector<FlatShape> flatShapes;
+	for (const auto& shape : scene.shapes) {
+		FlatShape flatShape;
 
-	// Specular component
-	glm::vec3 reflectDir = glm::reflect(-lightDir, normal); // Reflection direction
-	float spec = glm::pow(glm::max(glm::dot(viewDir, reflectDir), 0.0f), shininess);
-	glm::vec3 specular = specularStrength * spec * lightColor;
+		if (auto* sphere = dynamic_cast<Sphere*>(shape.get())) {
+			flatShape.type = 0; // Sphere
+			flatShape.color = sphere->color;
+			flatShape.material = sphere->material;
+			flatShape.sphereCenter = sphere->m_center;
+			flatShape.sphereRadius = sphere->m_radius;
+		}
+		else if (auto* plane = dynamic_cast<Plane*>(shape.get())) {
+			flatShape.type = 1; // Plane
+			flatShape.color = plane->color;
+			flatShape.material = plane->material;
+			flatShape.planeNormal = plane->m_normal;
+			flatShape.planeD = plane->d;
+		}
 
-	// Combine results
-	glm::vec3 result = (ambient + diffuse + specular) * objectColor;
-	return result;
+		flatShapes.push_back(flatShape);
+	}
+
+	flatScene.shapes = flatShapes;
+
+	return flatScene;
 }
-
 
 int main(void)
 {
@@ -116,7 +140,8 @@ int main(void)
 	glBindImageTexture(0, texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
 
 	// Compute shader (cannot be used with others)
-	ComputeShader computeShader("src/shaders/shader.comp");
+	ComputeShader computeShader("src/shaders/cpu_shader.comp");
+	ComputeShader computeShaderGPU("src/shaders/gpu_shader.comp");
 
 	// Texture buffer
 	std::vector<float> pixelData(WIDTH * HEIGHT * 4, 0.0f); // Initialize to 0
@@ -125,29 +150,60 @@ int main(void)
 	// VS and FS for screen quad
 	Shader screenQuad("src/shaders/shader.vert", "src/shaders/shader.frag");
 
-	/* Camera */
-	camera = Camera();
-	camera.Position = glm::vec3(0.0f, 0.0f, 5.0f);
-	camera.MovementSpeed = 3.f;
-	camera.aspectRatio = float(WIDTH) / HEIGHT;
+	
 
 
 	/* Scene */
+	// Camera 
+	scene.camera = Camera();
+	scene.camera.Position = glm::vec3(0.0f, 0.0f, 5.0f);
+	scene.camera.MovementSpeed = 3.f;
+	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
+
 	// add light
-	Light light = Light(glm::vec3(0, -15, 0), glm::vec3(1));
+	scene.light = Light(glm::vec3(0, -15, 0), glm::vec3(1));
 
 	// add shapes
-	std::vector<std::unique_ptr<Shape>> shapes;
-	shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
-	shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-10, -10, -25)));
-	shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(10, -10, -25)));
-	shapes[2]->color = glm::vec3(1, 0, 0);
+	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-10, -10, -25)));
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(10, -10, -25)));
+	scene.shapes[2]->color = glm::vec3(1, 0, 0);
 	for (int i = 0; i < 10; ++i) {
-		auto pos = glm::vec3(rand() % 21-10, rand() % 41-20, (rand() % 150 + 10) * (-1));
-		shapes.push_back(std::make_unique<Sphere>(pos, 5.f));
-		shapes[i + 3]->color = glm::vec3(((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX);
+		auto pos = glm::vec3(rand() % 21 - 10, rand() % 41 - 20, (rand() % 150 + 10) * (-1));
+		scene.shapes.push_back(std::make_unique<Sphere>(pos, 5.f));
+		scene.shapes[i + 3]->color = glm::vec3(((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX);
+		scene.shapes[i + 3]->material.ambientStrength = ((float)rand()) / RAND_MAX;
+		scene.shapes[i + 3]->material.diffuseStrength = ((float)rand()) / RAND_MAX;
+		scene.shapes[i + 3]->material.specularStrength = ((float)rand()) / RAND_MAX;
+		scene.shapes[i + 3]->material.shininess = rand() % 100;
 	}
 
+	/* SSBO (Shader Storage Buffer Object */
+	FlatScene flatScene = serializeScene(scene); // Serialize scene
+	GLuint ssbo;
+	glGenBuffers(1, &ssbo);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+
+	// Calculate the size of the FlatScene data
+	size_t flatSceneSize = sizeof(flatScene);
+	size_t shapesSize = sizeof(FlatShape) * flatScene.shapes.size();
+
+	// Total size (camera + light + shapes)
+	size_t totalSize = flatSceneSize + shapesSize;
+
+	//glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(flatScene), &flatScene, GL_DYNAMIC_COPY);
+	// Allocate the SSBO with the appropriate size
+	glBufferData(GL_SHADER_STORAGE_BUFFER, totalSize, nullptr, GL_STATIC_DRAW);
+
+	// Copy the serialized scene data into the buffer
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, flatSceneSize, &flatScene.camera);
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, flatSceneSize, flatSceneSize + shapesSize, flatScene.shapes.data());
+
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo); 
+	//glBindBuffer(GL_SHADER_STORAGE_BUFFER, 1);
+
+
+	/* GUI */
 	// imgui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -172,59 +228,84 @@ int main(void)
 		// Input
 		processInput(window);
 
-		/***********************************************************************************************/
-		// Calculate ray hits
-		for (int y = 0; y < HEIGHT; ++y) {
-			for (int x = 0; x < WIDTH; ++x) {
-				Ray ray = camera.GetRay(2.f * x / WIDTH - 1, 1.f - 2.f * y / HEIGHT); // flip y-axis
+		if (!rtxon) { // CPU ray tracing
+			/***********************************************************************************************/
+			// Calculate ray hits
+			for (int y = 0; y < HEIGHT; ++y) {
+				for (int x = 0; x < WIDTH; ++x) {
+					Ray ray = scene.camera.GetRay(2.f * x / WIDTH - 1, 1.f - 2.f * y / HEIGHT); // flip y-axis
 
-				glm::vec3 color = glm::vec3(); // BG color
-				float closestDist = std::numeric_limits<float>::max();
+					glm::vec3 color = glm::vec3(); // BG color
+					float closestDist = std::numeric_limits<float>::max();
 
-				for (const auto& shape : shapes) {
-					// Trace ray
-					auto s_hit = shape->get_intersection(ray);
-					if (s_hit.intersect_type == INNER) { // Hit!
-						float dist = glm::distance(ray.get_start(), s_hit.hit_point);
-						if (dist < closestDist) {
-							closestDist = dist;
+					for (const auto& shape : scene.shapes) {
+						// Trace ray
+						Intersection s_hit = shape->get_intersection(ray);
+						if (s_hit.intersect_type == INNER) { // Hit!
+							float dist = glm::distance(ray.get_start(), s_hit.hit_point);
+							if (dist < closestDist) {
+								closestDist = dist;
 
-							auto point = s_hit.hit_point;
-							auto normal = shape->get_normal(point);
+								auto point = s_hit.hit_point;
+								auto normal = shape->get_normal(point);
 
-							// Calculate lighting (Phong)
-							color = phong(point, normal, ray.get_dir(), shape->color, light.position, light.color, shape->material);
+								// Calculate lighting (Phong)
+								color = phong(
+									point, 
+									normal, 
+									ray.get_dir(), 
+									shape->color, 
+									scene.light.position, 
+									scene.light.color, 
+									shape->material);
+							}
 						}
+
+						// Set color pixel in fragment shader
+						int idx = (y * WIDTH + x) * 4;
+						pixelData[idx + 0] = color.r;
+						pixelData[idx + 1] = color.g;
+						pixelData[idx + 2] = color.b;
+						pixelData[idx + 3] = 1.f;
 					}
-					// Set color pixel in fragment shader
-					int idx = (y * WIDTH + x) * 4;
-					pixelData[idx + 0] = color.r;
-					pixelData[idx + 1] = color.g;
-					pixelData[idx + 2] = color.b;
-					pixelData[idx + 3] = 1.f;
 				}
 			}
+
+			// Compute shader dispatch
+			computeShaderGPU.use();
+			glDispatchCompute((unsigned)WIDTH, (unsigned)HEIGHT, 1);
+			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+			// Render image to quad
+			glClearColor(.2f, .3f, .3f, 1.f);
+			screenQuad.use();
+			screenQuad.setInt("tex", 0);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RGBA, GL_FLOAT, pixelData.data());
+			renderQuad();
+			/***********************************************************************************************/
 		}
-		/***********************************************************************************************/
+		else { // GPU ray tracing
+			/***********************************************************************************************/
+			// Compute shader dispatch
+			computeShader.use();
+			glDispatchCompute((unsigned)WIDTH, (unsigned)HEIGHT, 1);
+			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+			// Render image to quad
+			glClearColor(.2f, .3f, .3f, 1.f);
+			screenQuad.use();
+			renderQuad();
 
 
-		// Compute shader dispatch
-		computeShader.use();
-		glDispatchCompute((unsigned)WIDTH, (unsigned)HEIGHT, 1);
-		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-		// Render image to quad
-		glClearColor(.2f, .3f, .3f, 1.f);
-		screenQuad.use();
-		screenQuad.setInt("tex", 0);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, WIDTH, HEIGHT, GL_RGBA, GL_FLOAT, pixelData.data());
-		renderQuad();
+			/***********************************************************************************************/
+		}
 
 		// Create GUI window
 		ImGui::Begin("GUI window");
 		ImGui::Text("Ray Tracer");
+		ImGui::Checkbox("RTX ON", &rtxon);
 		ImGui::End();
 
 		// Render UI elements
@@ -303,13 +384,13 @@ void processInput(GLFWwindow* window) {
 
 	// Camera control
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		camera.ProcessKeyboard(FORWARD, deltaTime);
+		scene.camera.ProcessKeyboard(FORWARD, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		camera.ProcessKeyboard(BACKWARD, deltaTime);
+		scene.camera.ProcessKeyboard(BACKWARD, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		camera.ProcessKeyboard(LEFT, deltaTime);
+		scene.camera.ProcessKeyboard(LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		camera.ProcessKeyboard(RIGHT, deltaTime);
+		scene.camera.ProcessKeyboard(RIGHT, deltaTime);
 
 				
 }
@@ -327,5 +408,35 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 	lastX = xpos;
 	lastY = ypos;
 
-	camera.ProcessMouseMovement(xOffset, yOffset);
+	scene.camera.ProcessMouseMovement(xOffset, yOffset);
+}
+
+glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material) {
+
+	// Material properties
+	float ambientStrength = material.ambientStrength;
+	float diffuseStrength = material.diffuseStrength;
+	float specularStrength = material.specularStrength;
+	int shininess = material.shininess;
+
+	// Ambient component
+	glm::vec3 ambient = ambientStrength * lightColor;
+
+	// Diffuse component
+	glm::vec3 lightDir = glm::normalize(lightPos - point); // Direction from point to light source
+	float diff = glm::max(glm::dot(normal, lightDir), 0.0f);
+	glm::vec3 diffuse = diffuseStrength * diff * lightColor;
+
+	// Specular component
+	glm::vec3 specular(0);
+	if (diff > 0.f) {
+		glm::vec3 reflectDir = glm::reflect(-lightDir, normal); // Reflection direction
+		float spec = glm::pow(glm::max(glm::dot(viewDir, reflectDir), 0.0f), shininess);
+		specular = specularStrength * spec * lightColor;
+	}
+	
+
+	// Combine results
+	glm::vec3 result = (ambient + diffuse + specular) * objectColor;
+	return result;
 }

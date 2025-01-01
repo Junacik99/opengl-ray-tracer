@@ -160,6 +160,7 @@
     <ClInclude Include="src\intersection.hpp" />
     <ClInclude Include="src\light.hpp" />
     <ClInclude Include="src\material.hpp" />
+    <ClInclude Include="src\shapes\flatShape.hpp" />
     <ClInclude Include="src\shapes\plane.hpp" />
     <ClInclude Include="src\ray.hpp" />
     <ClInclude Include="src\shader.hpp" />
@@ -167,7 +168,8 @@
     <ClInclude Include="src\shapes\sphere.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\shaders\shader.comp" />
+    <None Include="src\shaders\cpu_shader.comp" />
+    <None Include="src\shaders\gpu_shader.comp" />
     <None Include="src\shaders\shader.frag" />
     <None Include="src\shaders\shader.vert" />
   </ItemGroup>

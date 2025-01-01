@@ -61,7 +61,10 @@
     <None Include="src\shaders\shader.frag">
       <Filter>Source Files\shaders</Filter>
     </None>
-    <None Include="src\shaders\shader.comp">
+    <None Include="src\shaders\gpu_shader.comp">
+      <Filter>Source Files\shaders</Filter>
+    </None>
+    <None Include="src\shaders\cpu_shader.comp">
       <Filter>Source Files\shaders</Filter>
     </None>
   </ItemGroup>
@@ -123,6 +126,7 @@
     <ClInclude Include="imgui\imstb_truetype.h">
       <Filter>Source Files\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="src\shapes\flatShape.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="textures\container.jpg">

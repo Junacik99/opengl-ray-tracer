@@ -1,0 +1,79 @@
+#version 430
+
+// Structures
+struct Camera {
+    vec3 Position;
+    float aspectRatio;
+    vec3 Up;
+    vec3 Right;
+    float fov;
+};
+
+struct Light {
+    vec3 color;
+    vec3 position;
+};
+
+struct Sphere {
+    // From Shape class
+    vec3 color;
+    float ambientStrength;                       
+	float diffuseStrength;                       
+	float specularStrength;                      
+	int shininess;
+
+    vec3 center;
+    float radius;
+};
+
+struct Plane {
+    // From Shape class
+    vec3 color;
+    float ambientStrength;                       
+	float diffuseStrength;                       
+	float specularStrength;                      
+	int shininess;
+
+    vec3 normal;
+    vec3 point;
+};
+
+struct Material {
+    float ambientStrength;
+    float diffuseStrength;
+    float specularStrength;
+    float shininess;
+};
+
+struct Shape {
+    int type; // 0 for Sphere, 1 for Plane
+    vec3 color;
+    Material material;
+
+    vec3 sphereCenter; 
+    float sphereRadius;
+
+    vec3 planeNormal;  
+    float planeD;
+};
+
+
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) uniform image2D imgOutput;
+layout(std430, binding = 1) buffer SceneData{
+    Camera camera;
+    Light light;
+    Shape shapes[];
+};
+    
+
+void main() {
+    vec4 value = vec4(1.0, 0.0, 0.0, 1.0);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+	
+    value.x = float(texelCoord.x)/(gl_NumWorkGroups.x);
+    value.y = float(texelCoord.y)/(gl_NumWorkGroups.y);
+	
+    imageStore(imgOutput, texelCoord, value);
+}

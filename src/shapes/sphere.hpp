@@ -13,11 +13,13 @@ public:
 	~Sphere();
 	glm::vec3 get_normal(glm::vec3 position) const override;
 	Intersection get_intersection(Ray ray) const override;
+	void serialize(FlatShape& out) const override;
 
-
-private:
 	glm::vec3 m_center;
 	float m_radius;
+
+private:
+	
 };
 
 Sphere::Sphere(glm::vec3 center, float radius)
@@ -54,6 +56,14 @@ inline Intersection Sphere::get_intersection(Ray ray) const {
 	}
 
 	return Intersection(NONE); // return empty vector if no intersection
+}
+
+inline void Sphere::serialize(FlatShape& out) const {
+	out.type = 0; // Sphere
+	out.color = color;
+	out.material = material;
+	out.sphereCenter = m_center;
+	out.sphereRadius = m_radius;
 }
 
 #endif // !SPHERE_H

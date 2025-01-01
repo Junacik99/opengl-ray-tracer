@@ -13,12 +13,13 @@ public:
 	~Plane();
 	glm::vec3 get_normal(glm::vec3 position) const override;
 	Intersection get_intersection(Ray ray) const override;
-
-
-
-private:
+	void serialize(FlatShape& out) const override;
+	
 	glm::vec3 m_normal;
 	float d;
+
+private:
+	
 };
 
 Plane::Plane(glm::vec3 normal, glm::vec3 point)
@@ -50,6 +51,14 @@ inline Intersection Plane::get_intersection(Ray ray) const
 	{
 		return Intersection(NONE);
 	}
+}
+
+inline void Plane::serialize(FlatShape& out) const {
+	out.type = 1; // Plane
+	out.color = color;
+	out.material = material;
+	out.planeNormal = m_normal;
+	out.planeD = d;
 }
 
 #endif // !PLANE_H
