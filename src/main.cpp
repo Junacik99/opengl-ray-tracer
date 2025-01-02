@@ -453,7 +453,10 @@ void processInput(GLFWwindow* window) {
 		scene.camera.ProcessKeyboard(LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
 		scene.camera.ProcessKeyboard(RIGHT, deltaTime);
-
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+		scene.camera.ProcessKeyboard(UP, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+		scene.camera.ProcessKeyboard(DOWN, deltaTime);
 				
 }
 
