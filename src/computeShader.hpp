@@ -21,6 +21,7 @@ public:
 	void setInt(const std::string& name, int value) const;
 	void setFloat(const std::string& name, float value) const;
 	void setMat4(const std::string& name, glm::mat4 mat) const;
+	void setVec2(const std::string& name, glm::vec2 v) const;
 
 private:
 
@@ -105,6 +106,11 @@ void ComputeShader::setFloat(const std::string& name, float value) const
 void ComputeShader::setMat4(const std::string& name, glm::mat4 mat) const
 {
 	glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(mat));
+}
+
+void ComputeShader::setVec2(const std::string& name, glm::vec2 v) const
+{
+	glUniform2f(glGetUniformLocation(ID, name.c_str()), v.x, v.y);
 }
 
 #endif // !COMPUTE_SHADER_H

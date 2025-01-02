@@ -29,8 +29,8 @@ glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3
 
 
 // Window size
-const int WIDTH = 800;
-const int HEIGHT = 600;
+const int WIDTH = 1920;
+const int HEIGHT = 1080;
 
 bool wireframe = false;
 bool zKeyPressed = false;
@@ -58,14 +58,17 @@ struct FlatCamera {
 	glm::vec3 Position;
 	float aspectRatio;
 
-	glm::vec3 Up;     
-	float padding2;  
+	glm::vec3 Front;
+	float padding2;
 
-	glm::vec3 Right;  
+	glm::vec3 Up;     
 	float padding3;  
 
+	glm::vec3 Right;  
+	float padding4;  
+
 	float fov;
-	glm::vec3 padding4;
+	glm::vec3 padding5;
 };
 
 struct FlatLight {
@@ -82,14 +85,22 @@ struct FlatScene {
 	std::vector <FlatShape> shapes;
 };
 
+FlatCamera serializeCamera(Camera cam) {
+	FlatCamera flatCam;
+	flatCam.Position = cam.Position;
+	flatCam.aspectRatio = cam.aspectRatio;
+	flatCam.Front = cam.Front;
+	flatCam.Up = cam.Up;
+	flatCam.Right = cam.Right;
+	flatCam.fov = cam.fov;
+
+	return flatCam;
+}
+
 FlatScene serializeScene(const Scene& scene) {
 	FlatScene flatScene;
 
-	flatScene.camera.Position = scene.camera.Position;
-	flatScene.camera.aspectRatio = scene.camera.aspectRatio;
-	flatScene.camera.Up = scene.camera.Up;
-	flatScene.camera.Right = scene.camera.Right;
-	flatScene.camera.fov = scene.camera.fov;
+	flatScene.camera = serializeCamera(scene.camera);
 
 
 	flatScene.light.position = scene.light.position;
@@ -213,9 +224,9 @@ int main(void)
 		scene.shapes[i + 3]->material.shininess = rand() % 100;
 	}
 
-	for (const auto& shape : scene.shapes) {
+	/*for (const auto& shape : scene.shapes) {
 		std::cout << shape->color.r*255 << ' ' << shape->color.g*255 << ' ' << shape->color.b*255 << std::endl;
-	}
+	}*/
 
 	/* SSBO (Shader Storage Buffer Object */
 	FlatScene flatScene = serializeScene(scene); // Serialize scene
@@ -330,13 +341,21 @@ int main(void)
 		}
 		else { // GPU ray tracing
 			/***********************************************************************************************/
+			// Update Camera data (TODO: animate shapes as well)
+			flatScene.camera = serializeCamera(scene.camera);
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbocamera);
+			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatCamera), &flatScene.camera);
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+			
 			// Compute shader dispatch
 			computeShaderGPU.use();
 			glDispatchCompute((unsigned)WIDTH, (unsigned)HEIGHT, 1);
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
+			// Set window resolution in shader
+			computeShaderGPU.setVec2("screenRes", glm::vec2(WIDTH, HEIGHT));
+
 			// Render image to quad
-			//glClearColor(.2f, .3f, .3f, 1.f);
 			glClearColor(0, 0, 0, 1.f);
 			screenQuad.use();
 			renderQuad();
