@@ -61,7 +61,12 @@ inline Intersection Sphere::get_intersection(Ray ray) const {
 inline void Sphere::serialize(FlatShape& out) const {
 	out.type = 0; // Sphere
 	out.color = color;
-	out.material = material;
+
+	out.material.ambientStrength = material.ambientStrength;
+	out.material.diffuseStrength = material.diffuseStrength;
+	out.material.specularStrength = material.specularStrength;
+	out.material.shininess = material.shininess;
+
 	out.sphereCenter = m_center;
 	out.sphereRadius = m_radius;
 }

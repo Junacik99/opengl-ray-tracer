@@ -34,7 +34,7 @@ const int HEIGHT = 600;
 
 bool wireframe = false;
 bool zKeyPressed = false;
-bool rtxon = false;
+bool rtxon = true;
 
 
 /* Camera */
@@ -54,17 +54,46 @@ struct Scene
 	std::vector < std::unique_ptr< Shape >> shapes;
 } scene;
 
+struct FlatCamera {
+	glm::vec3 Position;
+	float aspectRatio;
+
+	glm::vec3 Up;     
+	float padding2;  
+
+	glm::vec3 Right;  
+	float padding3;  
+
+	float fov;
+	glm::vec3 padding4;
+};
+
+struct FlatLight {
+	glm::vec3 position;
+	float padding1;
+
+	glm::vec3 color;
+	float padding2;
+};
+
 struct FlatScene {
-	Camera camera;
-	Light light;
+	FlatCamera camera;
+	FlatLight light;
 	std::vector <FlatShape> shapes;
 };
 
 FlatScene serializeScene(const Scene& scene) {
 	FlatScene flatScene;
 
-	flatScene.camera = scene.camera;
-	flatScene.light = scene.light;
+	flatScene.camera.Position = scene.camera.Position;
+	flatScene.camera.aspectRatio = scene.camera.aspectRatio;
+	flatScene.camera.Up = scene.camera.Up;
+	flatScene.camera.Right = scene.camera.Right;
+	flatScene.camera.fov = scene.camera.fov;
+
+
+	flatScene.light.position = scene.light.position;
+	flatScene.light.color = scene.light.color;
 	
 	std::vector<FlatShape> flatShapes;
 	for (const auto& shape : scene.shapes) {
@@ -73,14 +102,24 @@ FlatScene serializeScene(const Scene& scene) {
 		if (auto* sphere = dynamic_cast<Sphere*>(shape.get())) {
 			flatShape.type = 0; // Sphere
 			flatShape.color = sphere->color;
-			flatShape.material = sphere->material;
+
+			flatShape.material.ambientStrength = sphere->material.ambientStrength;
+			flatShape.material.diffuseStrength = sphere->material.diffuseStrength;
+			flatShape.material.specularStrength = sphere->material.specularStrength;
+			flatShape.material.shininess = sphere->material.shininess;
+
 			flatShape.sphereCenter = sphere->m_center;
 			flatShape.sphereRadius = sphere->m_radius;
 		}
 		else if (auto* plane = dynamic_cast<Plane*>(shape.get())) {
 			flatShape.type = 1; // Plane
 			flatShape.color = plane->color;
-			flatShape.material = plane->material;
+			
+			flatShape.material.ambientStrength = plane->material.ambientStrength;
+			flatShape.material.diffuseStrength = plane->material.diffuseStrength;
+			flatShape.material.specularStrength = plane->material.specularStrength;
+			flatShape.material.shininess = plane->material.shininess;
+
 			flatShape.planeNormal = plane->m_normal;
 			flatShape.planeD = plane->d;
 		}
@@ -146,12 +185,8 @@ int main(void)
 	// Texture buffer
 	std::vector<float> pixelData(WIDTH * HEIGHT * 4, 0.0f); // Initialize to 0
 
-
 	// VS and FS for screen quad
 	Shader screenQuad("src/shaders/shader.vert", "src/shaders/shader.frag");
-
-	
-
 
 	/* Scene */
 	// Camera 
@@ -161,7 +196,7 @@ int main(void)
 	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
 
 	// add light
-	scene.light = Light(glm::vec3(0, -15, 0), glm::vec3(1));
+	scene.light = Light(glm::vec3(0, -15, 0), glm::vec3(.45f,.3f,.5f));
 
 	// add shapes
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
@@ -178,29 +213,36 @@ int main(void)
 		scene.shapes[i + 3]->material.shininess = rand() % 100;
 	}
 
+	for (const auto& shape : scene.shapes) {
+		std::cout << shape->color.r*255 << ' ' << shape->color.g*255 << ' ' << shape->color.b*255 << std::endl;
+	}
+
 	/* SSBO (Shader Storage Buffer Object */
 	FlatScene flatScene = serializeScene(scene); // Serialize scene
-	GLuint ssbo;
-	glGenBuffers(1, &ssbo);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 
-	// Calculate the size of the FlatScene data
-	size_t flatSceneSize = sizeof(flatScene);
-	size_t shapesSize = sizeof(FlatShape) * flatScene.shapes.size();
+	// send light
+	GLuint ssbolight;
+	glGenBuffers(1, &ssbolight);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbolight);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(FlatLight), &flatScene.light, GL_DYNAMIC_COPY);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbolight);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
 
-	// Total size (camera + light + shapes)
-	size_t totalSize = flatSceneSize + shapesSize;
+	// send camera
+	GLuint ssbocamera;
+	glGenBuffers(1, &ssbocamera);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbocamera);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(FlatCamera), &flatScene.camera, GL_DYNAMIC_COPY);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssbocamera);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
 
-	//glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(flatScene), &flatScene, GL_DYNAMIC_COPY);
-	// Allocate the SSBO with the appropriate size
-	glBufferData(GL_SHADER_STORAGE_BUFFER, totalSize, nullptr, GL_STATIC_DRAW);
-
-	// Copy the serialized scene data into the buffer
-	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, flatSceneSize, &flatScene.camera);
-	glBufferSubData(GL_SHADER_STORAGE_BUFFER, flatSceneSize, flatSceneSize + shapesSize, flatScene.shapes.data());
-
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssbo); 
-	//glBindBuffer(GL_SHADER_STORAGE_BUFFER, 1);
+	// send shapes
+	GLuint ssboshapes;
+	glGenBuffers(1, &ssboshapes);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data(), GL_DYNAMIC_COPY);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssboshapes);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
 
 
 	/* GUI */
@@ -272,7 +314,7 @@ int main(void)
 			}
 
 			// Compute shader dispatch
-			computeShaderGPU.use();
+			computeShader.use();
 			glDispatchCompute((unsigned)WIDTH, (unsigned)HEIGHT, 1);
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -289,12 +331,13 @@ int main(void)
 		else { // GPU ray tracing
 			/***********************************************************************************************/
 			// Compute shader dispatch
-			computeShader.use();
+			computeShaderGPU.use();
 			glDispatchCompute((unsigned)WIDTH, (unsigned)HEIGHT, 1);
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 			// Render image to quad
-			glClearColor(.2f, .3f, .3f, 1.f);
+			//glClearColor(.2f, .3f, .3f, 1.f);
+			glClearColor(0, 0, 0, 1.f);
 			screenQuad.use();
 			renderQuad();
 

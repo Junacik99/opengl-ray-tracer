@@ -1,6 +1,14 @@
 #ifndef MATERIAL_H
 #define MATERIAL_H
 
+struct FlatMaterial
+{
+	float ambientStrength;                       // Ambient coefficient
+	float diffuseStrength;                       // Diffuse coefficient
+	float specularStrength;                      // Specular coefficient
+	int shininess;                                 // Shininess factor for specular highlights
+};
+
 class Material
 {
 public:

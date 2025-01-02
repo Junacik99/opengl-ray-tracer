@@ -4,50 +4,36 @@
 struct Camera {
     vec3 Position;
     float aspectRatio;
+
     vec3 Up;
+    float padding2;
+
     vec3 Right;
+    float padding3;
+
     float fov;
+    vec3 padding4;
 };
 
 struct Light {
-    vec3 color;
     vec3 position;
-};
+    float padding1;
 
-struct Sphere {
-    // From Shape class
     vec3 color;
-    float ambientStrength;                       
-	float diffuseStrength;                       
-	float specularStrength;                      
-	int shininess;
-
-    vec3 center;
-    float radius;
-};
-
-struct Plane {
-    // From Shape class
-    vec3 color;
-    float ambientStrength;                       
-	float diffuseStrength;                       
-	float specularStrength;                      
-	int shininess;
-
-    vec3 normal;
-    vec3 point;
+    float padding2;
 };
 
 struct Material {
     float ambientStrength;
     float diffuseStrength;
     float specularStrength;
-    float shininess;
+    int shininess;
 };
 
 struct Shape {
     int type; // 0 for Sphere, 1 for Plane
     vec3 color;
+
     Material material;
 
     vec3 sphereCenter; 
@@ -61,19 +47,19 @@ struct Shape {
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout(rgba32f, binding = 0) uniform image2D imgOutput;
-layout(std430, binding = 1) buffer SceneData{
-    Camera camera;
+layout(std430, binding = 1) buffer LightBuffer{
     Light light;
+};
+layout(std430, binding = 2) buffer CameraBuffer{
+    Camera camera;
+};
+layout(std430, binding = 3) buffer ShapesBuffer{
     Shape shapes[];
 };
-    
 
 void main() {
-    vec4 value = vec4(1.0, 0.0, 0.0, 1.0);
+    vec4 value = vec4(shapes[12].color, 1.0);
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-	
-    value.x = float(texelCoord.x)/(gl_NumWorkGroups.x);
-    value.y = float(texelCoord.y)/(gl_NumWorkGroups.y);
-	
+
     imageStore(imgOutput, texelCoord, value);
 }

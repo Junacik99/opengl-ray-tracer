@@ -8,8 +8,8 @@ class Light
 public:
 	Light(glm::vec3 pos, glm::vec3 c);
 	~Light();
-	glm::vec3 color;
 	glm::vec3 position;
+	glm::vec3 color;
 
 private:
 

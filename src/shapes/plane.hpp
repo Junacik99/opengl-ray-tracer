@@ -56,7 +56,12 @@ inline Intersection Plane::get_intersection(Ray ray) const
 inline void Plane::serialize(FlatShape& out) const {
 	out.type = 1; // Plane
 	out.color = color;
-	out.material = material;
+
+	out.material.ambientStrength = material.ambientStrength;
+	out.material.diffuseStrength = material.diffuseStrength;
+	out.material.specularStrength = material.specularStrength;
+	out.material.shininess = material.shininess;
+	
 	out.planeNormal = m_normal;
 	out.planeD = d;
 }
