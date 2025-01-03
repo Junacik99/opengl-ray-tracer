@@ -29,8 +29,8 @@ glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3
 
 
 // Window size
-const int WIDTH = 1920;
-const int HEIGHT = 1080;
+const int WIDTH = 800;
+const int HEIGHT = 600;
 
 bool wireframe = false;
 bool zKeyPressed = false;
@@ -41,6 +41,7 @@ bool rtxon = true;
 // Camera axes
 float lastX = WIDTH/2, lastY = HEIGHT/2; // Set cursor to the center
 bool firstMouse = true;
+bool useMouse = true;
 
 
 // Frame inference computation
@@ -211,17 +212,24 @@ int main(void)
 
 	// add shapes
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 15, 0)));
+	scene.shapes[1]->color = glm::vec3(0.65f, 0.17f, 0.35f);
+	scene.shapes[1]->material.shininess = 100;
+	//scene.shapes[1]->material.specularStrength = 0.1;
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-10, -10, -25)));
+	//scene.shapes[2]->material.specularStrength = 0.1;
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(10, -10, -25)));
-	scene.shapes[2]->color = glm::vec3(1, 0, 0);
-	for (int i = 0; i < 10; ++i) {
+	//scene.shapes[3]->material.specularStrength = 0.1;
+	scene.shapes[3]->color = glm::vec3(1, 0, 0);
+	for (int i = 0; i < 5; ++i) {
 		auto pos = glm::vec3(rand() % 21 - 10, rand() % 41 - 20, (rand() % 150 + 10) * (-1));
 		scene.shapes.push_back(std::make_unique<Sphere>(pos, 5.f));
-		scene.shapes[i + 3]->color = glm::vec3(((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX);
-		scene.shapes[i + 3]->material.ambientStrength = ((float)rand()) / RAND_MAX;
-		scene.shapes[i + 3]->material.diffuseStrength = ((float)rand()) / RAND_MAX;
-		scene.shapes[i + 3]->material.specularStrength = ((float)rand()) / RAND_MAX;
-		scene.shapes[i + 3]->material.shininess = rand() % 100;
+		scene.shapes[i + 4]->color = glm::vec3(((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX);
+		scene.shapes[i + 4]->material.ambientStrength = ((float)rand()) / RAND_MAX;
+		scene.shapes[i + 4]->material.diffuseStrength = ((float)rand()) / RAND_MAX;
+		scene.shapes[i + 4]->material.specularStrength = ((float)rand()) / RAND_MAX;
+		//scene.shapes[i + 4]->material.specularStrength = 0.1;
+		scene.shapes[i + 4]->material.shininess = rand() % 100;
 	}
 
 	/*for (const auto& shape : scene.shapes) {
@@ -341,11 +349,17 @@ int main(void)
 		}
 		else { // GPU ray tracing
 			/***********************************************************************************************/
-			// Update Camera data (TODO: animate shapes as well)
-			flatScene.camera = serializeCamera(scene.camera);
+			// Update scene
+			flatScene = serializeScene(scene);
+
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbocamera);
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatCamera), &flatScene.camera);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
+			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data());
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+
 			
 			// Compute shader dispatch
 			computeShaderGPU.use();
@@ -367,7 +381,19 @@ int main(void)
 		// Create GUI window
 		ImGui::Begin("GUI window");
 		ImGui::Text("Ray Tracer");
+
 		ImGui::Checkbox("RTX ON", &rtxon);
+
+		ImGui::Text("Main ball material");
+		auto ballColorV = scene.shapes[0]->color;
+		float ballColor[4] = { ballColorV.r, ballColorV.g, ballColorV.b, 1.f };
+		ImGui::ColorEdit4("Diffuse color", ballColor);
+		scene.shapes[0]->color = glm::vec3(ballColor[0], ballColor[1], ballColor[2]);
+		ImGui::SliderFloat("Ambient", &scene.shapes[0]->material.ambientStrength, 0, 1);
+		ImGui::SliderFloat("Diffuse", &scene.shapes[0]->material.diffuseStrength, 0, 1);
+		ImGui::SliderFloat("Specular", &scene.shapes[0]->material.specularStrength, 0, 1);
+		ImGui::SliderInt("Shininess", &scene.shapes[0]->material.shininess, 0, 100);
+
 		ImGui::End();
 
 		// Render UI elements
@@ -457,6 +483,9 @@ void processInput(GLFWwindow* window) {
 		scene.camera.ProcessKeyboard(UP, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
 		scene.camera.ProcessKeyboard(DOWN, deltaTime);
+
+	useMouse = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE;
+	
 				
 }
 
@@ -473,7 +502,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 	lastX = xpos;
 	lastY = ypos;
 
-	scene.camera.ProcessMouseMovement(xOffset, yOffset);
+	if (useMouse)
+		scene.camera.ProcessMouseMovement(xOffset, yOffset);
 }
 
 glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material) {
