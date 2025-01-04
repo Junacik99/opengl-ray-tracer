@@ -478,6 +478,8 @@ void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
 		scene.camera.ProcessKeyboard(DOWN, deltaTime);
 
+	scene.camera.MovementSpeed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) ? SPEED * SPEEDAMPLIFIER : SPEED;
+
 	useMouse = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE;
 	
 				
@@ -539,7 +541,7 @@ void generateScene()
 	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
 
 	// add light
-	scene.light = Light(glm::vec3(0, -14, 0), glm::vec3(1), 1);
+	scene.light = Light(glm::vec3(0, -14, 0), glm::vec3(1), 50);
 
 	// add shapes
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
