@@ -277,6 +277,7 @@ void main() {
 
             if (useFresnel){
                 float fresnel = pow(1.0 - max(dot(-ray.dir, hitNormal), 0.0), 5.0);
+                fresnel = clamp(fresnel, 0.0, 0.8);
                 attenuation *= mix(vec3(1.0), hitColor, fresnel * hitMaterial.fresnelStrength);
             }
             else

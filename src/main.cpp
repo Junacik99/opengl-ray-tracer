@@ -540,7 +540,7 @@ void generateScene()
 {
 	// Camera 
 	scene.camera = Camera();
-	scene.camera.Position = glm::vec3(8.0f, 0.0f, 25.0f);
+	scene.camera.Position = glm::vec3(30.0f, -5.0f, 40.0f);
 	scene.camera.MovementSpeed = 3.f;
 	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
 
