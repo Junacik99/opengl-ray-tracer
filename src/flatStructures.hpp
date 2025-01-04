@@ -20,7 +20,7 @@ struct FlatMaterial
 };
 
 struct FlatShape {
-    int type; // 0 for Sphere, 1 for Plane
+    int type; // 0 for Sphere, 1 for Plane, 2 for Wall
     alignas(16) glm::vec3 padding;
 
     FlatMaterial material;
@@ -30,6 +30,12 @@ struct FlatShape {
 
     alignas(16) glm::vec3 planeNormal;
     float planeD;  
+
+	alignas(16) glm::vec3 wallStart;
+	float wallWidth;
+
+	float wallHeight;
+	alignas(16) glm::vec3 padding1;
 };
 
 struct FlatCamera {

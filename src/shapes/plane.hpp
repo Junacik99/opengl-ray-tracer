@@ -12,7 +12,7 @@ public:
 	Plane(glm::vec3 normal, glm::vec3 point);
 	~Plane();
 	glm::vec3 get_normal(glm::vec3 position) const override;
-	Intersection get_intersection(Ray ray) const override;
+	virtual Intersection get_intersection(Ray ray) const override;
 	void serialize(FlatShape& out) const override;
 	
 	glm::vec3 m_normal;
@@ -26,7 +26,6 @@ Plane::Plane(glm::vec3 normal, glm::vec3 point)
 {
 	m_normal = glm::normalize(normal);
 	d = -(glm::dot(m_normal, point));
-	//color = glm::vec3(0, 0, 1);
 	origin = point;
 }
 

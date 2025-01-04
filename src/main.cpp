@@ -14,6 +14,7 @@
 #include "shapes/shape.hpp"
 #include "shapes/sphere.hpp"
 #include "shapes/plane.hpp"
+#include "shapes/wall.hpp"
 #include "computeShader.hpp"
 #include <vector>
 #include "material.hpp"
@@ -276,6 +277,13 @@ int main(void)
 		ImGui::SliderFloat("Y pos", &scene.light.position.y, -17, 17);
 		ImGui::SliderFloat("Z pos", &scene.light.position.z, -17, 17);
 
+		ImGui::Text("Mirror");
+		ImGui::SliderFloat("fresnel", &scene.shapes[4]->material.fresnelStrength, 0, 1);
+		ImGui::SliderFloat("ambient", &scene.shapes[4]->material.ambientStrength, 0, 1);
+		ImGui::SliderFloat("diffuse", &scene.shapes[4]->material.diffuseStrength, 0, 1);
+		ImGui::SliderFloat("specular", &scene.shapes[4]->material.specularStrength, 0, 1);
+		ImGui::SliderInt("shininess", &scene.shapes[4]->material.shininess, 0, 100);
+
 		ImGui::End();
 
 		// Render UI elements
@@ -470,11 +478,19 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.5f;
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 
-	// top
+	// wall (mirror)
+	scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-15, 23, -15), 10, 20, glm::vec3(-1, 0.2f, -1)));
+	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
+	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.1f;
+	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0;
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 1;
+
+
+	// bottom
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
 	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	// bottom
+	// top
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
 	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
@@ -540,6 +556,25 @@ FlatScene serializeScene(const Scene& scene) {
 			flatShape.sphereCenter = sphere->m_center;
 			flatShape.sphereRadius = sphere->m_radius;
 		}
+		else if (auto* wall = dynamic_cast<Wall*>(shape.get())) {
+			flatShape.type = 2; // Wall
+
+			flatShape.material.color = wall->material.color;
+			flatShape.material.fresnelStrength = wall->material.fresnelStrength;
+
+			flatShape.material.ambientStrength = wall->material.ambientStrength;
+			flatShape.material.diffuseStrength = wall->material.diffuseStrength;
+			flatShape.material.specularStrength = wall->material.specularStrength;
+			flatShape.material.shininess = wall->material.shininess;
+
+			flatShape.planeNormal = wall->m_normal;
+			flatShape.planeD = wall->d;
+
+			flatShape.wallStart = wall->start;
+			flatShape.wallWidth = wall->width;
+			flatShape.wallHeight = wall->height;
+
+		}
 		else if (auto* plane = dynamic_cast<Plane*>(shape.get())) {
 			flatShape.type = 1; // Plane
 
@@ -553,7 +588,9 @@ FlatScene serializeScene(const Scene& scene) {
 
 			flatShape.planeNormal = plane->m_normal;
 			flatShape.planeD = plane->d;
+
 		}
+		
 
 		flatShapes.push_back(flatShape);
 	}
