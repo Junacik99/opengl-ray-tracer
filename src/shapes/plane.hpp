@@ -27,6 +27,7 @@ Plane::Plane(glm::vec3 normal, glm::vec3 point)
 	m_normal = glm::normalize(normal);
 	d = -(glm::dot(m_normal, point));
 	color = glm::vec3(0, 0, 1);
+	origin = point;
 }
 
 Plane::~Plane()

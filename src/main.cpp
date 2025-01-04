@@ -26,7 +26,7 @@ void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void renderQuad();
 glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material);
-
+void generateScene();
 
 // Window size
 const int WIDTH = 800;
@@ -47,6 +47,12 @@ bool useMouse = true;
 // Frame inference computation
 float deltaTime = 0.0f;	// Time between current frame and last frame
 float lastFrame = 0.0f; // Time of last frame
+
+// Ray computation
+int maxBounces = 3;
+bool useFresnel = false;
+bool superSampling = false;
+int sampling = 1;
 
 struct Scene
 {
@@ -201,36 +207,9 @@ int main(void)
 	Shader screenQuad("src/shaders/shader.vert", "src/shaders/shader.frag");
 
 	/* Scene */
-	// Camera 
-	scene.camera = Camera();
-	scene.camera.Position = glm::vec3(0.0f, 0.0f, 5.0f);
-	scene.camera.MovementSpeed = 3.f;
-	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
+	generateScene();
 
-	// add light
-	scene.light = Light(glm::vec3(0, -15, 0), glm::vec3(.45f,.3f,.5f));
-
-	// add shapes
-	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 15, 0)));
-	scene.shapes[1]->color = glm::vec3(0.65f, 0.17f, 0.35f);
-	scene.shapes[1]->material.shininess = 100;
-	//scene.shapes[1]->material.specularStrength = 0.1;
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-10, -10, -25)));
-	//scene.shapes[2]->material.specularStrength = 0.1;
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(10, -10, -25)));
-	//scene.shapes[3]->material.specularStrength = 0.1;
-	scene.shapes[3]->color = glm::vec3(1, 0, 0);
-	for (int i = 0; i < 5; ++i) {
-		auto pos = glm::vec3(rand() % 21 - 10, rand() % 41 - 20, (rand() % 150 + 10) * (-1));
-		scene.shapes.push_back(std::make_unique<Sphere>(pos, 5.f));
-		scene.shapes[i + 4]->color = glm::vec3(((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX, ((float)rand()) / RAND_MAX);
-		scene.shapes[i + 4]->material.ambientStrength = ((float)rand()) / RAND_MAX;
-		scene.shapes[i + 4]->material.diffuseStrength = ((float)rand()) / RAND_MAX;
-		scene.shapes[i + 4]->material.specularStrength = ((float)rand()) / RAND_MAX;
-		//scene.shapes[i + 4]->material.specularStrength = 0.1;
-		scene.shapes[i + 4]->material.shininess = rand() % 100;
-	}
+	
 
 	/*for (const auto& shape : scene.shapes) {
 		std::cout << shape->color.r*255 << ' ' << shape->color.g*255 << ' ' << shape->color.b*255 << std::endl;
@@ -356,6 +335,10 @@ int main(void)
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatCamera), &flatScene.camera);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
 
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbolight);
+			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatLight), &flatScene.light);
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data());
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
@@ -368,6 +351,8 @@ int main(void)
 
 			// Set window resolution in shader
 			computeShaderGPU.setVec2("screenRes", glm::vec2(WIDTH, HEIGHT));
+			computeShaderGPU.setInt("maxBounces", maxBounces);
+			computeShaderGPU.setBool("useFresnel", useFresnel);
 
 			// Render image to quad
 			glClearColor(0, 0, 0, 1.f);
@@ -383,6 +368,8 @@ int main(void)
 		ImGui::Text("Ray Tracer");
 
 		ImGui::Checkbox("RTX ON", &rtxon);
+		ImGui::SliderInt("Max bounces", &maxBounces, 1, 10);
+		ImGui::Checkbox("Fresnel", &useFresnel);
 
 		ImGui::Text("Main ball material");
 		auto ballColorV = scene.shapes[0]->color;
@@ -393,6 +380,13 @@ int main(void)
 		ImGui::SliderFloat("Diffuse", &scene.shapes[0]->material.diffuseStrength, 0, 1);
 		ImGui::SliderFloat("Specular", &scene.shapes[0]->material.specularStrength, 0, 1);
 		ImGui::SliderInt("Shininess", &scene.shapes[0]->material.shininess, 0, 100);
+
+		ImGui::Text("Light");
+		ImGui::SliderFloat("Intensity", &scene.light.intensity, 0, 100);
+		scene.light.updateColor();
+		ImGui::SliderFloat("X pos", &scene.light.position.x, -17, 17);
+		ImGui::SliderFloat("Y pos", &scene.light.position.y, -17, 17);
+		ImGui::SliderFloat("Z pos", &scene.light.position.z, -17, 17);
 
 		ImGui::End();
 
@@ -534,4 +528,45 @@ glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3
 	// Combine results
 	glm::vec3 result = (ambient + diffuse + specular) * objectColor;
 	return result;
+}
+
+void generateScene()
+{
+	// Camera 
+	scene.camera = Camera();
+	scene.camera.Position = glm::vec3(8.0f, 0.0f, 25.0f);
+	scene.camera.MovementSpeed = 3.f;
+	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
+
+	// add light
+	scene.light = Light(glm::vec3(0, -14, 0), glm::vec3(1), 1);
+
+	// add shapes
+	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
+
+	// top
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 15, 0)));
+	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(0.65f, 0.17f, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	// bottom
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -15, 0)));
+	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(0.65f, 0.17f, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	// left
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-15, 0, 0)));
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	// right
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(15, 0, 0)));
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(1, 0, 0);
+	// front
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 15)));
+	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(1, 1, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	// back
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -15)));
+	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(1, .5f, 0);
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+
+	scene.camera.LookAt(scene.shapes[0]->origin);
 }

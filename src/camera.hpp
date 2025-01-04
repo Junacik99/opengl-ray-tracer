@@ -135,6 +135,17 @@ public:
         return Ray(Position, rayDirection);
     }
 
+    void LookAt(glm::vec3 target) {
+        // Direction vector from the camera to the target
+        glm::vec3 direction = glm::normalize(target - Position);
+
+        // Pitch and yaw 
+        Pitch = glm::degrees(asin(direction.y)); 
+        Yaw = glm::degrees(atan2(direction.z, direction.x));
+
+        updateCameraVectors();
+    }
+
 private:
     // calculates the front vector from the Camera's (updated) Euler Angles
     void updateCameraVectors()

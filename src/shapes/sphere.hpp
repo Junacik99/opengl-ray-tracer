@@ -27,6 +27,7 @@ Sphere::Sphere(glm::vec3 center, float radius)
 	m_center = center;
 	m_radius = radius;
 	color = glm::vec3(0, 1, 0);
+	origin = center;
 }
 
 Sphere::~Sphere()

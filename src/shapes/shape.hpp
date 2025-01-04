@@ -20,6 +20,7 @@ public:
 
 	glm::vec3 color;
 	Material material;
+	glm::vec3 origin;
 
 private:
 
