@@ -286,6 +286,10 @@ int main(void)
 		if (animate) {
 			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[0].get()))
 				bounceSphere(sphere, currentFrame, 10);
+			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[1].get()))
+				bounceSphere(sphere, currentFrame, 7, 0.8);
+			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[2].get()))
+				bounceSphere(sphere, currentFrame, 15, 1.5);
 		}
 	
 		// swap buffers and poll io events
@@ -439,7 +443,32 @@ void generateScene()
 
 	// add shapes
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 10, -8), 5.f));
-	scene.shapes[0]->material.color = glm::vec3(0, 1, 0);
+	scene.shapes[0]->material.color = glm::vec3(0, 0.37f, 0);
+	scene.shapes[0]->material.fresnelStrength = 0;
+	scene.shapes[0]->material.ambientStrength = 0.2f;
+	scene.shapes[0]->material.diffuseStrength = 1;
+	scene.shapes[0]->material.specularStrength = 0.1f;
+
+	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(12, 10, -8), 4.f));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.58f, 0.18f, 0.48f);
+	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 0;
+	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0;
+	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.5f;
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+
+	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(20, 7.5, -8), 2.5f));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.8f, 0.2f, 0.8f);
+	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
+	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
+	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
+
+	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 23, -8), 1.5f));
+	scene.shapes[0]->material.color = glm::vec3(0, 0.37f, 0);
+	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 0;
+	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0;
+	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.5f;
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 
 	// top
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
