@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 #include "../material.hpp"
-#include "flatShape.hpp"
+#include "../flatStructures.hpp"
 #include "../ray.hpp"
 #include "../intersection.hpp"
 

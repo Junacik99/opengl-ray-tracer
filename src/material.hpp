@@ -1,21 +1,6 @@
 #ifndef MATERIAL_H
 #define MATERIAL_H
 
-struct FlatMaterial
-{
-	alignas(16) glm::vec3 color;
-	float fresnelStrength;
-
-	float ambientStrength; // Ambient coefficient
-	
-	float diffuseStrength; // Diffuse coefficient
-
-	float specularStrength; // Specular coefficient
-	
-	int shininess; // Shininess factor for specular highlights
-
-};
-
 class Material
 {
 public:

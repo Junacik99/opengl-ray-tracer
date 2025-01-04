@@ -19,7 +19,7 @@
 #include "material.hpp"
 #include "light.hpp"
 #include <glm/gtx/string_cast.hpp>
-#include "shapes/flatShape.hpp"
+#include "flatStructures.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -27,6 +27,17 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void renderQuad();
 glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material);
 void generateScene();
+void cpuRayTracer(std::vector<float>& pixelData);
+
+struct Scene
+{
+	Camera camera;
+	Light light;
+	std::vector < std::unique_ptr< Shape >> shapes;
+} scene;
+
+FlatCamera serializeCamera(Camera cam);
+FlatScene serializeScene(const Scene& scene);
 
 // Window size
 const int WIDTH = 800;
@@ -35,6 +46,7 @@ const int HEIGHT = 600;
 bool wireframe = false;
 bool zKeyPressed = false;
 bool rtxon = true;
+bool animate = true;
 
 
 /* Camera */
@@ -53,105 +65,11 @@ int maxBounces = 3;
 bool useFresnel = true;
 float fresnelStrength = 1.f;
 
-struct Scene
-{
-	Camera camera;
-	Light light;
-	std::vector < std::unique_ptr< Shape >> shapes;
-} scene;
-
-struct FlatCamera {
-	glm::vec3 Position;
-	float aspectRatio;
-
-	glm::vec3 Front;
-	float padding2;
-
-	glm::vec3 Up;     
-	float padding3;  
-
-	glm::vec3 Right;  
-	float padding4;  
-
-	float fov;
-	glm::vec3 padding5;
-};
-
-struct FlatLight {
-	glm::vec3 position;
-	float padding1;
-
-	glm::vec3 color;
-	float padding2;
-};
-
-struct FlatScene {
-	FlatCamera camera;
-	FlatLight light;
-	std::vector <FlatShape> shapes;
-};
-
-FlatCamera serializeCamera(Camera cam) {
-	FlatCamera flatCam;
-	flatCam.Position = cam.Position;
-	flatCam.aspectRatio = cam.aspectRatio;
-	flatCam.Front = cam.Front;
-	flatCam.Up = cam.Up;
-	flatCam.Right = cam.Right;
-	flatCam.fov = cam.fov;
-
-	return flatCam;
+void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude=2, float frequency=1) {
+	// Bouncing on the Y-axis
+	sphere->m_center.y = sphere->origin.y + amplitude * std::sin(frequency * elapsedTime);
 }
 
-FlatScene serializeScene(const Scene& scene) {
-	FlatScene flatScene;
-
-	flatScene.camera = serializeCamera(scene.camera);
-
-
-	flatScene.light.position = scene.light.position;
-	flatScene.light.color = scene.light.color;
-	
-	std::vector<FlatShape> flatShapes;
-	for (const auto& shape : scene.shapes) {
-		FlatShape flatShape;
-
-		if (auto* sphere = dynamic_cast<Sphere*>(shape.get())) {
-			flatShape.type = 0; // Sphere
-
-			flatShape.material.color = sphere->material.color;
-			flatShape.material.fresnelStrength = sphere->material.fresnelStrength;
-
-			flatShape.material.ambientStrength = sphere->material.ambientStrength;
-			flatShape.material.diffuseStrength = sphere->material.diffuseStrength;
-			flatShape.material.specularStrength = sphere->material.specularStrength;
-			flatShape.material.shininess = sphere->material.shininess;
-
-			flatShape.sphereCenter = sphere->m_center;
-			flatShape.sphereRadius = sphere->m_radius;
-		}
-		else if (auto* plane = dynamic_cast<Plane*>(shape.get())) {
-			flatShape.type = 1; // Plane
-
-			flatShape.material.color = plane->material.color;
-			flatShape.material.fresnelStrength = plane->material.fresnelStrength;
-			
-			flatShape.material.ambientStrength = plane->material.ambientStrength;
-			flatShape.material.diffuseStrength = plane->material.diffuseStrength;
-			flatShape.material.specularStrength = plane->material.specularStrength;
-			flatShape.material.shininess = plane->material.shininess;
-
-			flatShape.planeNormal = plane->m_normal;
-			flatShape.planeD = plane->d;
-		}
-
-		flatShapes.push_back(flatShape);
-	}
-
-	flatScene.shapes = flatShapes;
-
-	return flatScene;
-}
 
 int main(void)
 {
@@ -272,47 +190,9 @@ int main(void)
 		processInput(window);
 
 		if (!rtxon) { // CPU ray tracing
+			// No phong, fresnel, shadows... Just laggy ray tracing with diffuse colors
 			/***********************************************************************************************/
-			// Calculate ray hits
-			for (int y = 0; y < HEIGHT; ++y) {
-				for (int x = 0; x < WIDTH; ++x) {
-					Ray ray = scene.camera.GetRay(2.f * x / WIDTH - 1, 1.f - 2.f * y / HEIGHT); // flip y-axis
-
-					glm::vec3 color = glm::vec3(); // BG color
-					float closestDist = std::numeric_limits<float>::max();
-
-					for (const auto& shape : scene.shapes) {
-						// Trace ray
-						Intersection s_hit = shape->get_intersection(ray);
-						if (s_hit.intersect_type == INNER) { // Hit!
-							float dist = glm::distance(ray.get_start(), s_hit.hit_point);
-							if (dist < closestDist) {
-								closestDist = dist;
-
-								auto point = s_hit.hit_point;
-								auto normal = shape->get_normal(point);
-
-								// Calculate lighting (Phong)
-								color = phong(
-									point, 
-									normal, 
-									ray.get_dir(), 
-									shape->material.color,
-									scene.light.position, 
-									scene.light.color, 
-									shape->material);
-							}
-						}
-
-						// Set color pixel in fragment shader
-						int idx = (y * WIDTH + x) * 4;
-						pixelData[idx + 0] = color.r;
-						pixelData[idx + 1] = color.g;
-						pixelData[idx + 2] = color.b;
-						pixelData[idx + 3] = 1.f;
-					}
-				}
-			}
+			cpuRayTracer(pixelData);
 
 			// Compute shader dispatch
 			computeShader.use();
@@ -373,6 +253,7 @@ int main(void)
 		ImGui::Checkbox("RTX ON", &rtxon);
 		ImGui::SliderInt("Max bounces", &maxBounces, 1, 10);
 		ImGui::Checkbox("Fresnel", &useFresnel);
+		ImGui::Checkbox("Animate", &animate);
 
 		ImGui::Text("Main ball material");
 		auto ballColorV = scene.shapes[0]->material.color;
@@ -386,6 +267,9 @@ int main(void)
 		ImGui::SliderInt("Shininess", &scene.shapes[0]->material.shininess, 0, 100);
 
 		ImGui::Text("Light");
+		float lightColor[4] = { scene.light.color.r, scene.light.color.g, scene.light.color.b, 1.f };
+		ImGui::ColorEdit4("Color", lightColor);
+		scene.light.color = glm::vec3(lightColor[0], lightColor[1], lightColor[2]);
 		ImGui::SliderFloat("Intensity", &scene.light.intensity, 0, 100);
 		scene.light.updateColor();
 		ImGui::SliderFloat("X pos", &scene.light.position.x, -17, 17);
@@ -397,6 +281,12 @@ int main(void)
 		// Render UI elements
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+		// Animate objects
+		if (animate) {
+			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[0].get()))
+				bounceSphere(sphere, currentFrame, 10);
+		}
 	
 		// swap buffers and poll io events
 		glfwSwapBuffers(window);
@@ -548,7 +438,7 @@ void generateScene()
 	scene.light = Light(glm::vec3(0, -14, 0), glm::vec3(1), 50);
 
 	// add shapes
-	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
+	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 10, -8), 5.f));
 	scene.shapes[0]->material.color = glm::vec3(0, 1, 0);
 
 	// top
@@ -578,4 +468,111 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 
 	scene.camera.LookAt(scene.shapes[0]->origin);
+}
+
+FlatCamera serializeCamera(Camera cam) {
+	FlatCamera flatCam;
+	flatCam.Position = cam.Position;
+	flatCam.aspectRatio = cam.aspectRatio;
+	flatCam.Front = cam.Front;
+	flatCam.Up = cam.Up;
+	flatCam.Right = cam.Right;
+	flatCam.fov = cam.fov;
+
+	return flatCam;
+}
+
+FlatScene serializeScene(const Scene& scene) {
+	FlatScene flatScene;
+
+	// Serialize camera
+	flatScene.camera = serializeCamera(scene.camera);
+
+	// Serialize light
+	flatScene.light.position = scene.light.position;
+	flatScene.light.color = scene.light.color;
+
+	// Serialize shapes
+	std::vector<FlatShape> flatShapes;
+	for (const auto& shape : scene.shapes) {
+		FlatShape flatShape;
+
+		if (auto* sphere = dynamic_cast<Sphere*>(shape.get())) {
+			flatShape.type = 0; // Sphere
+
+			flatShape.material.color = sphere->material.color;
+			flatShape.material.fresnelStrength = sphere->material.fresnelStrength;
+
+			flatShape.material.ambientStrength = sphere->material.ambientStrength;
+			flatShape.material.diffuseStrength = sphere->material.diffuseStrength;
+			flatShape.material.specularStrength = sphere->material.specularStrength;
+			flatShape.material.shininess = sphere->material.shininess;
+
+			flatShape.sphereCenter = sphere->m_center;
+			flatShape.sphereRadius = sphere->m_radius;
+		}
+		else if (auto* plane = dynamic_cast<Plane*>(shape.get())) {
+			flatShape.type = 1; // Plane
+
+			flatShape.material.color = plane->material.color;
+			flatShape.material.fresnelStrength = plane->material.fresnelStrength;
+
+			flatShape.material.ambientStrength = plane->material.ambientStrength;
+			flatShape.material.diffuseStrength = plane->material.diffuseStrength;
+			flatShape.material.specularStrength = plane->material.specularStrength;
+			flatShape.material.shininess = plane->material.shininess;
+
+			flatShape.planeNormal = plane->m_normal;
+			flatShape.planeD = plane->d;
+		}
+
+		flatShapes.push_back(flatShape);
+	}
+
+	flatScene.shapes = flatShapes;
+
+	return flatScene;
+}
+
+void cpuRayTracer(std::vector<float>& pixelData) {
+	// Calculate ray hits
+	for (int y = 0; y < HEIGHT; ++y) {
+		for (int x = 0; x < WIDTH; ++x) {
+			Ray ray = scene.camera.GetRay(2.f * x / WIDTH - 1, 1.f - 2.f * y / HEIGHT); // flip y-axis
+
+			glm::vec3 color = glm::vec3(); // BG color
+			float closestDist = std::numeric_limits<float>::max();
+
+			for (const auto& shape : scene.shapes) {
+				// Trace ray
+				Intersection s_hit = shape->get_intersection(ray);
+				if (s_hit.intersect_type == INNER) { // Hit!
+					float dist = glm::distance(ray.get_start(), s_hit.hit_point);
+					if (dist < closestDist) {
+						closestDist = dist;
+
+						auto point = s_hit.hit_point;
+						auto normal = shape->get_normal(point);
+
+						// Calculate lighting (Phong)
+						color = phong(
+							point,
+							normal,
+							ray.get_dir(),
+							shape->material.color,
+							scene.light.position,
+							scene.light.color,
+							shape->material);
+					}
+				}
+
+				// Set color pixel in fragment shader
+				int idx = (y * WIDTH + x) * 4;
+				pixelData[idx + 0] = color.r;
+				pixelData[idx + 1] = color.g;
+				pixelData[idx + 2] = color.b;
+				pixelData[idx + 3] = 1.f;
+			}
+		}
+	}
 }

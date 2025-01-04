@@ -256,16 +256,17 @@ void main() {
             }
         }
 
-        // Compute color of the hitPoint, if NOT in shadow
-        vec3 phongColor = vec3(0);
-        if (!inShadow)
-            phongColor = phong(
+        // Compute color of the hitPoint
+        vec3 phongColor = phong(
                                 hitPoint, 
                                 hitNormal, 
                                 ray.dir, 
                                 hitColor, 
                                 light, 
                                 hitMaterial);
+        
+        // If in shadow, make color darker
+        if (inShadow) phongColor *=0.3;
 
         accumulatedColor = attenuation * phongColor;
 
