@@ -545,26 +545,26 @@ void generateScene()
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
 
 	// top
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 15, 0)));
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
 	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(0.65f, 0.17f, 0.35f);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 	// bottom
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -15, 0)));
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
 	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(0.65f, 0.17f, 0.35f);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 	// left
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-15, 0, 0)));
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-25, 0, 0)));
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 	// right
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(15, 0, 0)));
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(25, 0, 0)));
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(1, 0, 0);
 	// front
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 15)));
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 25)));
 	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(1, 1, 0.35f);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 	// back
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -15)));
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -25)));
 	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(1, .5f, 0);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 

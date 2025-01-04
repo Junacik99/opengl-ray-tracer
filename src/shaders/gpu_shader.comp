@@ -139,20 +139,24 @@ vec3 phong(vec3 point, vec3 normal, vec3 viewDir, vec3 objectColor, Light light,
 	float specularStrength = mat.specularStrength;
 	int shininess = mat.shininess;
 
+    // Distance-based light attenuation
+    float distToLight = distance(light.position, point);
+    vec3 lightColor = light.color / (distToLight);
+
     // Ambient component
-	vec3 ambient = ambientStrength * light.color;
+	vec3 ambient = ambientStrength * lightColor;
 
     // Diffuse component
 	vec3 lightDir = normalize(light.position - point);
 	float diff = max(dot(normal, lightDir), 0.0);
-	vec3 diffuse = diffuseStrength * diff * light.color;
+	vec3 diffuse = diffuseStrength * diff * lightColor;
 
     // Specular component
 	vec3 specular = vec3(0);
 	if (diff > 0.) {
 		vec3 reflectDir = reflect(-lightDir, normal);
 		float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-		specular = specularStrength * spec * light.color;
+		specular = specularStrength * spec * lightColor;
 	}
 
     // Combine results
