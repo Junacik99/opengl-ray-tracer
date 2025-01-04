@@ -6,7 +6,7 @@
 
 struct FlatShape {
     int type; // 0 for Sphere, 1 for Plane
-    alignas(16) glm::vec3 color;
+    alignas(16) glm::vec3 padding;
 
     FlatMaterial material;
 

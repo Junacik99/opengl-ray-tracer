@@ -18,7 +18,7 @@ public:
 	virtual void serialize(FlatShape& out) const = 0;
 
 
-	glm::vec3 color;
+	//glm::vec3 color;
 	Material material;
 	glm::vec3 origin;
 

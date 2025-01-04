@@ -27,6 +27,9 @@ struct Light {
 };
 
 struct Material {
+    vec3 color;
+    float fresnelStrength;
+
     float ambientStrength;
     float diffuseStrength;
     float specularStrength;
@@ -35,7 +38,7 @@ struct Material {
 
 struct Shape {
     int type; // 0 for Sphere, 1 for Plane
-    vec3 color;
+    vec3 padding;
 
     Material material;
 
@@ -180,6 +183,7 @@ layout(std430, binding = 3) buffer ShapesBuffer{
 uniform vec2 screenRes;
 uniform int maxBounces;
 uniform bool useFresnel;
+//uniform float fresnelStrength;
 
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
@@ -221,7 +225,7 @@ void main() {
                     hitPoint = s_hit.hit_point;
                     hitNormal = getNormalFromShape(shapes[i], hitPoint);
                     hitMaterial = shapes[i].material;
-                    hitColor = shapes[i].color;
+                    hitColor = shapes[i].material.color;
                 }
             }
         }
@@ -273,7 +277,7 @@ void main() {
 
             if (useFresnel){
                 float fresnel = pow(1.0 - max(dot(-ray.dir, hitNormal), 0.0), 5.0);
-                attenuation *= mix(vec3(1.0), hitColor, fresnel);
+                attenuation *= mix(vec3(1.0), hitColor, fresnel * hitMaterial.fresnelStrength);
             }
             else
                 attenuation *= hitMaterial.specularStrength;

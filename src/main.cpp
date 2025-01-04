@@ -50,9 +50,8 @@ float lastFrame = 0.0f; // Time of last frame
 
 // Ray computation
 int maxBounces = 3;
-bool useFresnel = false;
-bool superSampling = false;
-int sampling = 1;
+bool useFresnel = true;
+float fresnelStrength = 1.f;
 
 struct Scene
 {
@@ -119,7 +118,9 @@ FlatScene serializeScene(const Scene& scene) {
 
 		if (auto* sphere = dynamic_cast<Sphere*>(shape.get())) {
 			flatShape.type = 0; // Sphere
-			flatShape.color = sphere->color;
+
+			flatShape.material.color = sphere->material.color;
+			flatShape.material.fresnelStrength = sphere->material.fresnelStrength;
 
 			flatShape.material.ambientStrength = sphere->material.ambientStrength;
 			flatShape.material.diffuseStrength = sphere->material.diffuseStrength;
@@ -131,7 +132,9 @@ FlatScene serializeScene(const Scene& scene) {
 		}
 		else if (auto* plane = dynamic_cast<Plane*>(shape.get())) {
 			flatShape.type = 1; // Plane
-			flatShape.color = plane->color;
+
+			flatShape.material.color = plane->material.color;
+			flatShape.material.fresnelStrength = plane->material.fresnelStrength;
 			
 			flatShape.material.ambientStrength = plane->material.ambientStrength;
 			flatShape.material.diffuseStrength = plane->material.diffuseStrength;
@@ -294,7 +297,7 @@ int main(void)
 									point, 
 									normal, 
 									ray.get_dir(), 
-									shape->color, 
+									shape->material.color,
 									scene.light.position, 
 									scene.light.color, 
 									shape->material);
@@ -372,10 +375,11 @@ int main(void)
 		ImGui::Checkbox("Fresnel", &useFresnel);
 
 		ImGui::Text("Main ball material");
-		auto ballColorV = scene.shapes[0]->color;
+		auto ballColorV = scene.shapes[0]->material.color;
 		float ballColor[4] = { ballColorV.r, ballColorV.g, ballColorV.b, 1.f };
 		ImGui::ColorEdit4("Diffuse color", ballColor);
-		scene.shapes[0]->color = glm::vec3(ballColor[0], ballColor[1], ballColor[2]);
+		scene.shapes[0]->material.color = glm::vec3(ballColor[0], ballColor[1], ballColor[2]);
+		ImGui::SliderFloat("Fresnel strength", &scene.shapes[0]->material.fresnelStrength, 0, 1);
 		ImGui::SliderFloat("Ambient", &scene.shapes[0]->material.ambientStrength, 0, 1);
 		ImGui::SliderFloat("Diffuse", &scene.shapes[0]->material.diffuseStrength, 0, 1);
 		ImGui::SliderFloat("Specular", &scene.shapes[0]->material.specularStrength, 0, 1);
@@ -545,29 +549,32 @@ void generateScene()
 
 	// add shapes
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 0, -8), 5.f));
+	scene.shapes[0]->material.color = glm::vec3(0, 1, 0);
 
 	// top
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
-	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(0.65f, 0.17f, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 	// bottom
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
-	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(0.65f, 0.17f, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 	// left
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-25, 0, 0)));
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 0, 1);
+
 	// right
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(25, 0, 0)));
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(1, 0, 0);
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 0, 0);
 	// front
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 25)));
-	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(1, 1, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 1, 0.35f);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 	// back
 	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -25)));
-	scene.shapes[scene.shapes.size() - 1]->color = glm::vec3(1, .5f, 0);
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, .5f, 0);
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 
 	scene.camera.LookAt(scene.shapes[0]->origin);

@@ -26,7 +26,7 @@ Sphere::Sphere(glm::vec3 center, float radius)
 {
 	m_center = center;
 	m_radius = radius;
-	color = glm::vec3(0, 1, 0);
+	//color = glm::vec3(0, 1, 0);
 	origin = center;
 }
 
@@ -61,7 +61,9 @@ inline Intersection Sphere::get_intersection(Ray ray) const {
 
 inline void Sphere::serialize(FlatShape& out) const {
 	out.type = 0; // Sphere
-	out.color = color;
+
+	out.material.color = material.color;
+	out.material.fresnelStrength = material.fresnelStrength;
 
 	out.material.ambientStrength = material.ambientStrength;
 	out.material.diffuseStrength = material.diffuseStrength;
