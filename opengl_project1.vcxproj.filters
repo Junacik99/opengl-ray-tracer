@@ -132,6 +132,9 @@
     <ClInclude Include="src\shapes\wall.hpp">
       <Filter>Source Files\src\shapes</Filter>
     </ClInclude>
+    <ClInclude Include="src\shapes\triangle.hpp">
+      <Filter>Source Files\src\shapes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="textures\container.jpg">

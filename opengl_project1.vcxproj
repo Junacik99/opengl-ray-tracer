@@ -167,6 +167,7 @@
     <ClInclude Include="src\shapes\shape.hpp" />
     <ClInclude Include="src\shapes\sphere.hpp" />
     <ClInclude Include="src\shapes\wall.hpp" />
+    <ClInclude Include="src\shapes\triangle.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\shaders\cpu_shader.comp" />

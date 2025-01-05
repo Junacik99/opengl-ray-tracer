@@ -37,7 +37,7 @@ struct Material {
 };
 
 struct Shape {
-    int type; // 0 for Sphere, 1 for Plane
+    int type; // 0 for Sphere, 1 for Plane, 2 for Wall, 3 for Triangle
     vec3 padding;
 
     Material material;
@@ -53,12 +53,19 @@ struct Shape {
 
     float wallHeight;
 	vec3 padding1;
+
+    vec3 triP1;
+    float padding2;
+    vec3 triP2;
+    float padding3;
+    vec3 triP3;
+    float padding4;
 };
 vec3 getNormalFromShape(Shape shape, vec3 point){
     if (shape.type == 0){
         return normalize(point - shape.sphereCenter);
     }
-    else if (shape.type == 1 || shape.type == 2){
+    else if (shape.type == 1 || shape.type == 2 || shape.type == 3){
        return shape.planeNormal; 
     }
 };
@@ -113,7 +120,7 @@ Intersection get_intersection(Shape shape, Ray ray){
     Intersection intersection;
     intersection.intersect_type = NONE;
 
-    if (shape.type == 0){
+    if (shape.type == 0){ // Sphere
         vec3 start = ray.start;
         vec3 dir = ray.dir;
 
@@ -138,7 +145,7 @@ Intersection get_intersection(Shape shape, Ray ray){
             }
         }
     }
-    else if (shape.type == 1){
+    else if (shape.type == 1){ // Plane
         float np = dot(shape.planeNormal, ray.dir);
         if (np == 0) return intersection;
 
@@ -151,7 +158,7 @@ Intersection get_intersection(Shape shape, Ray ray){
             return intersection;
         }
     }
-    else if (shape.type == 2){
+    else if (shape.type == 2){ // Wall
         // Base intersection
         float np = dot(shape.planeNormal, ray.dir);
         if (np == 0) return intersection;
@@ -178,7 +185,44 @@ Intersection get_intersection(Shape shape, Ray ray){
         if (uProj < 0 || uProj > shape.wallWidth || vProj < 0 || vProj > shape.wallHeight)
             intersection.intersect_type = NONE;
 
-        return intersection;
+    }
+    else if (shape.type == 3){ // Triangle
+        // Base intersection with plane
+        float np = dot(shape.planeNormal, ray.dir);
+        if (np == 0) return intersection;
+
+        float t = -(shape.planeD + dot(shape.planeNormal, ray.start)) / np;
+        if (t > 0){
+            intersection.intersect_type = (np > 0) ? INNER : OUTER;
+            intersection.hit_point = getPointFromRay(ray, t);
+        }
+        else {
+            return intersection;
+        }
+
+        vec3 hitPoint = intersection.hit_point;
+
+        // Compute vectors for edges and point-to-vertex
+        vec3 edge1 = shape.triP2 - shape.triP1;
+        vec3 edge2 = shape.triP3 - shape.triP1;
+        vec3 toPoint = hitPoint - shape.triP1;
+
+        // Barycentric coordinates
+        float d00 = dot(edge1, edge1);
+        float d01 = dot(edge1, edge2);
+        float d11 = dot(edge2, edge2);
+        float d20 = dot(toPoint, edge1);
+        float d21 = dot(toPoint, edge2);
+        
+        float denom = d00 * d11 - d01 * d01;
+        float v = (d11 * d20 - d01 * d21) / denom;
+        float w = (d00 * d21 - d01 * d20) / denom;
+        float u = 1.0 - v - w;
+
+        // Check if the point lies inside the triangle
+        if (u < 0 || v < 0 || w < 0) {
+            intersection.intersect_type = NONE;
+        }
 
     }
 
@@ -186,7 +230,7 @@ Intersection get_intersection(Shape shape, Ray ray){
 };
 
 // Phong shading
-vec3 phong(vec3 point, vec3 normal, vec3 viewDir, vec3 objectColor, Light light, Material mat){
+vec3 phong(vec3 point, vec3 normal, vec3 viewDir, Light light, Material mat){
     // Material properties
 	float ambientStrength = mat.ambientStrength;
 	float diffuseStrength = mat.diffuseStrength;
@@ -214,7 +258,7 @@ vec3 phong(vec3 point, vec3 normal, vec3 viewDir, vec3 objectColor, Light light,
 	}
 
     // Combine results
-	vec3 result = (ambient + diffuse + specular) * objectColor;
+	vec3 result = (ambient + diffuse + specular) * mat.color;
 	return result;
 }; 
 
@@ -234,7 +278,6 @@ layout(std430, binding = 3) buffer ShapesBuffer{
 uniform vec2 screenRes;
 uniform int maxBounces;
 uniform bool useFresnel;
-//uniform float fresnelStrength;
 
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
@@ -251,7 +294,7 @@ void main() {
 
     
     vec3 accumulatedColor = vec3(0);
-    vec3 attenuation = vec3(1); // TODO: vec3 ?
+    vec3 attenuation = vec3(1);
 
     for (int depth=0; depth<maxBounces; ++depth){
         // Just high number, I dont want to divide by 0 to achieve infinity
@@ -313,7 +356,6 @@ void main() {
                                 hitPoint, 
                                 hitNormal, 
                                 ray.dir, 
-                                hitColor, 
                                 light, 
                                 hitMaterial);
         

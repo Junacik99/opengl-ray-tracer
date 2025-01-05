@@ -15,6 +15,7 @@
 #include "shapes/sphere.hpp"
 #include "shapes/plane.hpp"
 #include "shapes/wall.hpp"
+#include "shapes/triangle.hpp"
 #include "computeShader.hpp"
 #include <vector>
 #include "material.hpp"
@@ -29,6 +30,8 @@ void renderQuad();
 glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material);
 void generateScene();
 void cpuRayTracer(std::vector<float>& pixelData);
+void printMaterial(Material mat);
+void printTriangle(Triangle triangle);
 
 struct Scene
 {
@@ -485,32 +488,45 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0;
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 1;
 
+	// triangle
+	auto p1 = glm::vec3(5, 10, 10);
+	auto p2 = glm::vec3(15, 10, 10);
+	auto p3 = glm::vec3(10, 0, 10);
+	scene.shapes.push_back(std::make_unique<Triangle>(p1, p2, p3));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.19f, 0.66f, 0.32f);
+	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
+	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
+	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
+	auto* triangle = dynamic_cast<Triangle*>(scene.shapes[scene.shapes.size() - 1].get());
+	//triangle->invert_normal();
+	printTriangle(*triangle);
 
-	// bottom
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	// top
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	// left
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-25, 0, 0)));
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 0, 1);
+	//// bottom
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//// top
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//// left
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-25, 0, 0)));
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 0, 1);
 
-	// right
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(25, 0, 0)));
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 0, 0);
-	// front
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 25)));
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 1, 0.35f);
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	// back
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -25)));
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, .5f, 0);
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//// right
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(25, 0, 0)));
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 0, 0);
+	//// front
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 25)));
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 1, 0.35f);
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//// back
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -25)));
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, .5f, 0);
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 
 	scene.camera.LookAt(scene.shapes[0]->origin);
 }
@@ -573,6 +589,25 @@ FlatScene serializeScene(const Scene& scene) {
 			flatShape.wallStart = wall->start;
 			flatShape.wallWidth = wall->width;
 			flatShape.wallHeight = wall->height;
+
+		}
+		else if (auto* triangle = dynamic_cast<Triangle*>(shape.get())) {
+			flatShape.type = 3; // Triangle
+
+			flatShape.material.color = triangle->material.color;
+			flatShape.material.fresnelStrength = triangle->material.fresnelStrength;
+
+			flatShape.material.ambientStrength = triangle->material.ambientStrength;
+			flatShape.material.diffuseStrength = triangle->material.diffuseStrength;
+			flatShape.material.specularStrength = triangle->material.specularStrength;
+			flatShape.material.shininess = triangle->material.shininess;
+
+			flatShape.planeNormal = triangle->m_normal;
+			flatShape.planeD = triangle->d;
+
+			flatShape.triP1 = triangle->a;
+			flatShape.triP2 = triangle->b;
+			flatShape.triP3 = triangle->c;
 
 		}
 		else if (auto* plane = dynamic_cast<Plane*>(shape.get())) {
@@ -641,4 +676,36 @@ void cpuRayTracer(std::vector<float>& pixelData) {
 			}
 		}
 	}
+}
+
+void printMaterial(Material mat) {
+	std::cout << "Color " << mat.color.r << " " << mat.color.g << " " << mat.color.b << std::endl;
+	std::cout << "Fresnel " << mat.fresnelStrength << std::endl;
+	std::cout << "Ambient " << mat.ambientStrength << std::endl;
+	std::cout << "Diffuse " << mat.diffuseStrength << std::endl;
+	std::cout << "Specular " << mat.specularStrength << std::endl;
+	std::cout << "Shininess " << mat.shininess << std::endl;
+}
+
+void printTriangle(Triangle triangle) {
+	using namespace std;
+
+	cout << "Material:" << endl;
+	printMaterial(triangle.material);
+	cout << endl;
+
+	cout << "Triangle:" << endl;
+	cout << "P1 " << triangle.a.x << " " << triangle.a.y << " " << triangle.a.z << endl;
+	cout << "P2 " << triangle.b.x << " " << triangle.b.y << " " << triangle.b.z << endl;
+	cout << "P3 " << triangle.c.x << " " << triangle.c.y << " " << triangle.c.z << endl;
+	cout << endl;
+
+	cout << "Plane:" << endl;
+	cout << "normal " << triangle.m_normal.x << " " << triangle.m_normal.y << " " << triangle.m_normal.z << endl;
+	cout << "D " << triangle.d << endl;
+	cout << endl;
+
+	cout << "Shape: " << endl;
+	cout << "origin " << triangle.origin.x << " " << triangle.origin.y << " " << triangle.origin.z << endl;
+
 }
