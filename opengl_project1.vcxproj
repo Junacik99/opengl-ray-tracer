@@ -108,13 +108,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\junac\Documents\Marrtin\opengl projects\opengl_project1\imgui;D:\junac\Documents\Marrtin\opengl projects\opengl_project1\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\junac\Documents\Marrtin\opengl projects\opengl_project1;D:\junac\Documents\Marrtin\opengl projects\opengl_project1\imgui;D:\junac\Documents\Marrtin\opengl projects\opengl_project1\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;glfw3.lib;user32.lib;gdi32.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Users\Martin\Documents\libraries\glfw-3.4.bin.WIN64\lib-vc2022;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opengl32.lib;glfw3.lib;user32.lib;gdi32.lib;shell32.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\Martin\Documents\libraries\glfw-3.4.bin.WIN64\lib-vc2022;D:\junac\Documents\Marrtin\SKOLA\VUT\PGR\assimp\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -161,6 +161,8 @@
     <ClInclude Include="src\light.hpp" />
     <ClInclude Include="src\material.hpp" />
     <ClInclude Include="src\flatStructures.hpp" />
+    <ClInclude Include="src\mesh.hpp" />
+    <ClInclude Include="src\model.hpp" />
     <ClInclude Include="src\shapes\plane.hpp" />
     <ClInclude Include="src\ray.hpp" />
     <ClInclude Include="src\shader.hpp" />
@@ -178,6 +180,14 @@
   <ItemGroup>
     <Image Include="textures\awesomeface.png" />
     <Image Include="textures\container.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="models\monkey.obj">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </Object>
+    <Object Include="models\sphere.obj">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </Object>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

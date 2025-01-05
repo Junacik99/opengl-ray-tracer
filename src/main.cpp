@@ -22,6 +22,7 @@
 #include "light.hpp"
 #include <glm/gtx/string_cast.hpp>
 #include "flatStructures.hpp"
+#include "model.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -32,6 +33,7 @@ void generateScene();
 void cpuRayTracer(std::vector<float>& pixelData);
 void printMaterial(Material mat);
 void printTriangle(Triangle triangle);
+void printPoint(glm::vec3 point);
 
 struct Scene
 {
@@ -72,6 +74,22 @@ float fresnelStrength = 1.f;
 void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude=2, float frequency=1) {
 	// Bouncing on the Y-axis
 	sphere->m_center.y = sphere->origin.y + amplitude * std::sin(frequency * elapsedTime);
+}
+
+vector<Triangle> mesh2triangles(Mesh mesh, glm::vec3 origin = glm::vec3(0)) {
+	vector<Triangle> triangles;
+	for (int i = 0; i < mesh.indices.size(); i += 3) {
+		auto idx = mesh.indices[i];
+		auto idx2 = mesh.indices[i + 1];
+		auto idx3 = mesh.indices[i + 2];
+
+		auto p1 = mesh.vertices[idx].Position + origin;
+		auto p2 = mesh.vertices[idx2].Position + origin;
+		auto p3 = mesh.vertices[idx3].Position + origin;
+
+		triangles.push_back(Triangle(p1, p2, p3));
+	}
+	return triangles;
 }
 
 
@@ -130,6 +148,7 @@ int main(void)
 
 	// VS and FS for screen quad
 	Shader screenQuad("src/shaders/shader.vert", "src/shaders/shader.frag");
+
 
 	/* Scene */
 	generateScene();
@@ -489,9 +508,9 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 1;
 
 	// triangle
-	auto p1 = glm::vec3(5, 10, 10);
-	auto p2 = glm::vec3(15, 10, 10);
-	auto p3 = glm::vec3(10, 0, 10);
+	auto p1 = glm::vec3(-15, 20, 15);
+	auto p2 = glm::vec3(-12, 20, 0);
+	auto p3 = glm::vec3(-15, 0, 10);
 	scene.shapes.push_back(std::make_unique<Triangle>(p1, p2, p3));
 	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.19f, 0.66f, 0.32f);
 	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
@@ -499,34 +518,49 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
 	auto* triangle = dynamic_cast<Triangle*>(scene.shapes[scene.shapes.size() - 1].get());
-	//triangle->invert_normal();
-	printTriangle(*triangle);
 
-	//// bottom
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//// top
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//// left
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-25, 0, 0)));
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 0, 1);
 
-	//// right
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(25, 0, 0)));
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 0, 0);
-	//// front
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 25)));
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 1, 0.35f);
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//// back
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -25)));
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, .5f, 0);
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	/* 3D Model */
+	auto model = Model("models/monkey.obj");
+	//auto model = Model("models/sphere.obj");
+	auto monkey = model.meshes[0];
+	auto monkeyTriangles = mesh2triangles(monkey, glm::vec3(0,0,-30));
+	for (auto triangle : monkeyTriangles) {
+		triangle.invert_normal();
+		scene.shapes.push_back(std::make_unique<Triangle>(triangle));
+		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.19f, 0.66f, 0.32f);
+		scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
+		scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
+		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
+		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	}
+	std::cout << "Triangles added: " << monkeyTriangles.size() << std::endl;
+
+	// bottom
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	// top
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	// left
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-25, 0, 0)));
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 0, 1);
+
+	// right
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(25, 0, 0)));
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 0, 0);
+	// front
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 25)));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 1, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	// back
+	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -25)));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, .5f, 0);
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 
 	scene.camera.LookAt(scene.shapes[0]->origin);
 }
@@ -708,4 +742,8 @@ void printTriangle(Triangle triangle) {
 	cout << "Shape: " << endl;
 	cout << "origin " << triangle.origin.x << " " << triangle.origin.y << " " << triangle.origin.z << endl;
 
+}
+
+void printPoint(glm::vec3 point) {
+	cout << point.x << " " << point.y << " " << point.z << endl;
 }

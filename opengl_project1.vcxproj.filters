@@ -135,6 +135,12 @@
     <ClInclude Include="src\shapes\triangle.hpp">
       <Filter>Source Files\src\shapes</Filter>
     </ClInclude>
+    <ClInclude Include="src\mesh.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\model.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="textures\container.jpg">
@@ -143,5 +149,13 @@
     <Image Include="textures\awesomeface.png">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="models\monkey.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
+    <Object Include="models\sphere.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
   </ItemGroup>
 </Project>

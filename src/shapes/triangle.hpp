@@ -46,6 +46,7 @@ inline glm::vec3 Triangle::get_normal(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) 
 
 inline void Triangle::invert_normal() {
 	m_normal = -m_normal;
+	d = -(glm::dot(m_normal, a));
 }
 
 inline Intersection Triangle::get_intersection(Ray ray) const {
