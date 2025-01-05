@@ -249,13 +249,14 @@ void main() {
                 1. - 2. * texelCoord.y / screenRes.y);
     
 
-    // Just high number, I dont want to divide by 0 to achieve infinity
-    float closestDist = 10000;
-
+    
     vec3 accumulatedColor = vec3(0);
     vec3 attenuation = vec3(1); // TODO: vec3 ?
 
     for (int depth=0; depth<maxBounces; ++depth){
+        // Just high number, I dont want to divide by 0 to achieve infinity
+        float closestDist = 10000;
+
         bool hitSomething = false;
         vec3 hitColor = bgColor;
         Material hitMaterial;
