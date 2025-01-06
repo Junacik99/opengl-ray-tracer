@@ -75,6 +75,38 @@ struct Ray{
     vec3 start;
     vec3 dir;
 };
+
+// Intersection
+const uint NONE = 0;
+const uint INNER = 1;
+const uint OUTER = 2;
+struct Intersection{
+    uint intersect_type;
+    vec3 hit_point;
+};
+
+
+///////////////////////////////////////////////////////////////////////////////////
+// Inputs
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) uniform image2D imgOutput;
+layout(std430, binding = 1) buffer LightBuffer{
+    Light light;
+};
+layout(std430, binding = 2) buffer CameraBuffer{
+    Camera camera;
+};
+layout(std430, binding = 3) buffer ShapesBuffer{
+    Shape shapes[];
+};
+
+uniform vec2 screenRes;
+uniform int maxBounces;
+uniform bool useFresnel;
+uniform bool useMollerTrumbore;
+
+///////////////////////////////////////////////////////////////////////////////////
+// Functions
 vec3 getPointFromRay(Ray ray, float t){
     return ray.start + t*ray.dir;
 };
@@ -93,18 +125,38 @@ Ray getRay(Camera cam, float ndcX, float ndcY){
     return ray;
 };
 
-// Intersection
-const uint NONE = 0;
-const uint INNER = 1;
-const uint OUTER = 2;
-struct Intersection{
-    uint intersect_type;
-    vec3 hit_point;
-};
-Intersection getIntersectionPlane(Shape shape, Ray ray){
+Intersection getIntersectionTriangle_MollerTrumbore(Shape shape, Ray ray){
     Intersection intersection;
     intersection.intersect_type = NONE;
-    float np = dot(shape.planeNormal, ray.dir);
+    vec3 edge1 = shape.triP2 - shape.triP1;
+    vec3 edge2 = shape.triP3 - shape.triP1;
+    vec3 h = cross(ray.dir, edge2);
+    float a = dot(edge1,h);
+
+    if (abs(a) < 1e-5) return intersection;
+    float f = 1.0/a;
+    vec3 s = ray.start - shape.triP1;
+    float u = f*dot(s,h);
+    if (u<0 || u>1) return intersection;
+
+    vec3 q = cross(s, edge1);
+    float v = f*dot(ray.dir, q);
+    if (v<0 || u+v>1) return intersection;
+
+    float t = f*dot(edge2,q);
+    if (t>0){
+        intersection.intersect_type = INNER;
+        intersection.hit_point = getPointFromRay(ray, t);
+    }
+
+    return intersection;
+};
+Intersection getIntersectionTriangle_Barycentric(Shape shape, Ray ray){
+        Intersection intersection;
+        intersection.intersect_type = NONE;
+        
+        // Base intersection with plane
+        float np = dot(shape.planeNormal, ray.dir);
         if (np == 0) return intersection;
 
         float t = -(shape.planeD + dot(shape.planeNormal, ray.start)) / np;
@@ -115,7 +167,34 @@ Intersection getIntersectionPlane(Shape shape, Ray ray){
         else {
             return intersection;
         }
+
+        vec3 hitPoint = intersection.hit_point;
+
+        // Compute vectors for edges and point-to-vertex
+        vec3 edge1 = shape.triP2 - shape.triP1;
+        vec3 edge2 = shape.triP3 - shape.triP1;
+        vec3 toPoint = hitPoint - shape.triP1;
+
+        // Barycentric coordinates
+        float d00 = dot(edge1, edge1);
+        float d01 = dot(edge1, edge2);
+        float d11 = dot(edge2, edge2);
+        float d20 = dot(toPoint, edge1);
+        float d21 = dot(toPoint, edge2);
+        
+        float denom = d00 * d11 - d01 * d01;
+        float v = (d11 * d20 - d01 * d21) / denom;
+        float w = (d00 * d21 - d01 * d20) / denom;
+        float u = 1.0 - v - w;
+
+        // Check if the point lies inside the triangle
+        if (u < 0 || v < 0 || w < 0) {
+            intersection.intersect_type = NONE;
+        }
+
+        return intersection;
 };
+
 Intersection get_intersection(Shape shape, Ray ray){
     Intersection intersection;
     intersection.intersect_type = NONE;
@@ -187,43 +266,13 @@ Intersection get_intersection(Shape shape, Ray ray){
 
     }
     else if (shape.type == 3){ // Triangle
-        // Base intersection with plane
-        float np = dot(shape.planeNormal, ray.dir);
-        if (np == 0) return intersection;
 
-        float t = -(shape.planeD + dot(shape.planeNormal, ray.start)) / np;
-        if (t > 0){
-            intersection.intersect_type = (np > 0) ? INNER : OUTER;
-            intersection.hit_point = getPointFromRay(ray, t);
+        if (useMollerTrumbore) {
+            intersection = getIntersectionTriangle_MollerTrumbore(shape, ray);
         }
         else {
-            return intersection;
+            intersection = getIntersectionTriangle_Barycentric(shape, ray);
         }
-
-        vec3 hitPoint = intersection.hit_point;
-
-        // Compute vectors for edges and point-to-vertex
-        vec3 edge1 = shape.triP2 - shape.triP1;
-        vec3 edge2 = shape.triP3 - shape.triP1;
-        vec3 toPoint = hitPoint - shape.triP1;
-
-        // Barycentric coordinates
-        float d00 = dot(edge1, edge1);
-        float d01 = dot(edge1, edge2);
-        float d11 = dot(edge2, edge2);
-        float d20 = dot(toPoint, edge1);
-        float d21 = dot(toPoint, edge2);
-        
-        float denom = d00 * d11 - d01 * d01;
-        float v = (d11 * d20 - d01 * d21) / denom;
-        float w = (d00 * d21 - d01 * d20) / denom;
-        float u = 1.0 - v - w;
-
-        // Check if the point lies inside the triangle
-        if (u < 0 || v < 0 || w < 0) {
-            intersection.intersect_type = NONE;
-        }
-
     }
 
     return intersection;
@@ -263,22 +312,8 @@ vec3 phong(vec3 point, vec3 normal, vec3 viewDir, Light light, Material mat){
 }; 
 
 
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
-layout(rgba32f, binding = 0) uniform image2D imgOutput;
-layout(std430, binding = 1) buffer LightBuffer{
-    Light light;
-};
-layout(std430, binding = 2) buffer CameraBuffer{
-    Camera camera;
-};
-layout(std430, binding = 3) buffer ShapesBuffer{
-    Shape shapes[];
-};
 
-uniform vec2 screenRes;
-uniform int maxBounces;
-uniform bool useFresnel;
-
+///////////////////////////////////////////////////////////////////////////////////
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 

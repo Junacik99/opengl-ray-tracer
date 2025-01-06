@@ -53,6 +53,7 @@ bool wireframe = false;
 bool zKeyPressed = false;
 bool rtxon = true;
 bool animate = true;
+bool useMollerTrumbore = false;
 
 
 /* Camera */
@@ -209,6 +210,8 @@ int main(void)
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
+		float fps = 1.f / deltaTime;
+
 		// Input
 		processInput(window);
 
@@ -259,6 +262,7 @@ int main(void)
 			computeShaderGPU.setVec2("screenRes", glm::vec2(WIDTH, HEIGHT));
 			computeShaderGPU.setInt("maxBounces", maxBounces);
 			computeShaderGPU.setBool("useFresnel", useFresnel);
+			computeShaderGPU.setBool("useMollerTrumbore", useMollerTrumbore);
 
 			// Render image to quad
 			glClearColor(0, 0, 0, 1.f);
@@ -272,11 +276,13 @@ int main(void)
 		// Create GUI window
 		ImGui::Begin("GUI window");
 		ImGui::Text("Ray Tracer");
+		ImGui::Text("FPS: %.2f", fps);
 
 		ImGui::Checkbox("RTX ON", &rtxon);
 		ImGui::SliderInt("Max bounces", &maxBounces, 1, 10);
 		ImGui::Checkbox("Fresnel", &useFresnel);
 		ImGui::Checkbox("Animate", &animate);
+		ImGui::Checkbox("Moller-Trumbore", &useMollerTrumbore);
 
 		ImGui::Text("Main ball material");
 		auto ballColorV = scene.shapes[0]->material.color;
@@ -528,11 +534,11 @@ void generateScene()
 	for (auto triangle : monkeyTriangles) {
 		triangle.invert_normal();
 		scene.shapes.push_back(std::make_unique<Triangle>(triangle));
-		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.19f, 0.66f, 0.32f);
+		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(179.f/255, 165.f/255, 61.f/255);
 		scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
 		scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
 		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
-		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
 	}
 	std::cout << "Triangles added: " << monkeyTriangles.size() << std::endl;
 
