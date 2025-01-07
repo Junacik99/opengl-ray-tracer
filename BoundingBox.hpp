@@ -20,6 +20,8 @@ public:
 	void growToInclude(Wall wall);
 	void growToInclude(Mesh mesh);
 
+	void growToInclude(std::unique_ptr<Shape> &shape);
+
     //int buildBVH(std::vector<std::unique_ptr<Shape>>& shapes, std::vector<BVHNode>& bvhNodes, int start, int end);
 
 	glm::vec3 Min, Max;
@@ -94,6 +96,16 @@ inline void BoundingBox::growToInclude(Mesh mesh)
 	for (auto triangle : triangles) {
 		growToInclude(triangle);
 	}
+}
+
+inline void BoundingBox::growToInclude(std::unique_ptr<Shape> &shape)
+{
+	if (auto sphere = dynamic_cast<Sphere*>(shape.get()))
+		growToInclude(*sphere);
+	else if (auto wall = dynamic_cast<Wall*>(shape.get()))
+		growToInclude(*wall);
+	else if (auto triangle = dynamic_cast<Triangle*>(shape.get()))
+		growToInclude(*triangle);
 }
 
 //inline int BoundingBox::buildBVH(std::vector<std::unique_ptr<Shape>>& shapes, std::vector<BVHNode>& bvhNodes, int start, int end) {

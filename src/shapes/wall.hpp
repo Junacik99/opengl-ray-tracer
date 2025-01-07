@@ -11,9 +11,19 @@ public:
 
 	glm::vec3 start;
 	float width, height;
-	//glm::vec3 normal;
 	Intersection get_intersection(Ray ray) const override;
-	//BoundingBox getBoundingBox() const override;
+
+	glm::vec3 end() const {
+		glm::vec3 arbitrary = glm::vec3(1, 0, 0);
+		if (glm::abs(glm::dot(m_normal, arbitrary)) > 0.999f) {
+			arbitrary = glm::vec3(0, 1, 0);
+		}
+
+		glm::vec3 t1 = glm::normalize(glm::cross(m_normal, arbitrary));
+		glm::vec3 t2 = glm::normalize(glm::cross(m_normal, t1));
+
+		return start + (width * t1) + (height * t2);
+	}
 
 private:
 

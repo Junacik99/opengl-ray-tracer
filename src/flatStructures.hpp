@@ -83,16 +83,31 @@ struct FlatScene {
 	std::vector <FlatShape> shapes;
 };
 
-struct BVHNode {
-	alignas(16) glm::vec3 boundsMin; 
-	int leftChild;       // Index of the left child (-1 for leaf)
+struct FlatBBox {
+	alignas(16) glm::vec3 min;
+	float padding1;
+
+	alignas(16) glm::vec3 max;
+	float padding2;
+};
+
+struct FlatNode {
+	alignas(16) glm::vec3 boundsMin;
+	float padding1;
 
 	alignas(16)glm::vec3 boundsMax;
+	float padding2;
+	
+	int leftChild;       // Index of the left child (-1 for leaf)
 	int rightChild;      // Index of the right child (-1 for leaf)
 	
-	int shapeIndex;   // Index of the triangle (only valid for leaf nodes)
-	alignas(16)glm::vec3 padding;
+	int startShapeIdx;   // Index of the triangle (only valid for leaf nodes)
+	int numShapes;
 };
+std::vector<FlatNode> flatNodes;
+//std::vector<float> bvhBoxes; // Box 1 - min.x, min.y, min.z, max.x, max.y, max.z; Box 2 ...
+std::vector<int> bvhIndices; // Node 1 - left child idx, right child idx, shape indices; Node 2...
+
 
 #endif // !FLAT_STRUCTURES_H
 
