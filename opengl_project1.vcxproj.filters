@@ -141,6 +141,9 @@
     <ClInclude Include="src\model.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
+    <ClInclude Include="BoundingBox.hpp">
+      <Filter>Source Files\src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="textures\container.jpg">

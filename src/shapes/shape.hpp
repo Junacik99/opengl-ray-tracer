@@ -17,8 +17,6 @@ public:
 	virtual Intersection get_intersection(Ray ray) const = 0;
 	virtual void serialize(FlatShape& out) const = 0;
 
-
-	//glm::vec3 color;
 	Material material;
 	glm::vec3 origin;
 

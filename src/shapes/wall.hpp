@@ -13,6 +13,7 @@ public:
 	float width, height;
 	//glm::vec3 normal;
 	Intersection get_intersection(Ray ray) const override;
+	//BoundingBox getBoundingBox() const override;
 
 private:
 
@@ -50,6 +51,13 @@ inline Intersection Wall::get_intersection(Ray ray) const {
 
 	return baseIntersection;
 }
+
+//inline BoundingBox Wall::getBoundingBox() const
+//{
+//	auto bb = BoundingBox();
+//	bb.growToInclude(*this);
+//	return bb;
+//}
 
 
 #endif // !WALL_H

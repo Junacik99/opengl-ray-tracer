@@ -14,6 +14,10 @@ public:
 	glm::vec3 b;
 	glm::vec3 c;
 
+	glm::vec3 center() const {
+		return (a + b + c) / 3.0f;
+	}
+
 	void invert_normal();
 
 	Intersection get_intersection(Ray ray) const override;
@@ -26,7 +30,6 @@ private:
 Triangle::Triangle(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) 
 	: a(p1), b(p2), c(p3), Plane(get_normal(p1, p2, p3), p1)
 {
-
 }
 
 Triangle::~Triangle()

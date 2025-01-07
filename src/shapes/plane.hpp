@@ -14,12 +14,15 @@ public:
 	glm::vec3 get_normal(glm::vec3 position) const override;
 	virtual Intersection get_intersection(Ray ray) const override;
 	void serialize(FlatShape& out) const override;
+
+	//BoundingBox getBoundingBox() const override;
 	
 	glm::vec3 m_normal;
 	float d;
 
 private:
 	
+
 };
 
 Plane::Plane(glm::vec3 normal, glm::vec3 point)
@@ -67,5 +70,9 @@ inline void Plane::serialize(FlatShape& out) const {
 	out.planeNormal = m_normal;
 	out.planeD = d;
 }
+
+//inline BoundingBox Plane::getBoundingBox() const{
+//	return BoundingBox();
+//}
 
 #endif // !PLANE_H

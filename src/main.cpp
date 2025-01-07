@@ -23,6 +23,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include "flatStructures.hpp"
 #include "model.hpp"
+#include "BoundingBox.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -40,6 +41,7 @@ struct Scene
 	Camera camera;
 	Light light;
 	std::vector < std::unique_ptr< Shape >> shapes;
+	std::vector<BVHNode> bvhNodes;
 } scene;
 
 FlatCamera serializeCamera(Camera cam);
@@ -52,8 +54,10 @@ const int HEIGHT = 600;
 bool wireframe = false;
 bool zKeyPressed = false;
 bool rtxon = true;
-bool animate = true;
+bool animate = false;
 bool useMollerTrumbore = false;
+
+std::vector<int> animatedIndices;
 
 
 /* Camera */
@@ -77,22 +81,35 @@ void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude=2, float fr
 	sphere->m_center.y = sphere->origin.y + amplitude * std::sin(frequency * elapsedTime);
 }
 
-vector<Triangle> mesh2triangles(Mesh mesh, glm::vec3 origin = glm::vec3(0)) {
-	vector<Triangle> triangles;
-	for (int i = 0; i < mesh.indices.size(); i += 3) {
-		auto idx = mesh.indices[i];
-		auto idx2 = mesh.indices[i + 1];
-		auto idx3 = mesh.indices[i + 2];
-
-		auto p1 = mesh.vertices[idx].Position + origin;
-		auto p2 = mesh.vertices[idx2].Position + origin;
-		auto p3 = mesh.vertices[idx3].Position + origin;
-
-		triangles.push_back(Triangle(p1, p2, p3));
-	}
-	return triangles;
+void split(BVHNode& node) {
+	node.leftChild = 42;
+	node.rightChild = 69;
 }
 
+int buildBVH(std::vector<std::unique_ptr<Shape>>& shapes, std::vector<BVHNode>& bvhNodes, int start, int end) {
+	BoundingBox bb = BoundingBox();
+	for (auto& shape : shapes) {
+		if (auto sphere = dynamic_cast<Sphere*>(shape.get()))
+			bb.growToInclude(*sphere);
+		else if (auto wall = dynamic_cast<Wall*>(shape.get()))
+			bb.growToInclude(*wall);
+		else if (auto triangle = dynamic_cast<Triangle*>(shape.get()))
+			bb.growToInclude(*triangle);
+	}
+	std::cout << "Bounding box:" << std::endl;
+	printPoint(bb.Min);
+	printPoint(bb.Max);
+
+	// Create root node
+	BVHNode root;
+	root.boundsMax = bb.Max;
+	root.boundsMin = bb.Min;
+
+	split(root);
+	bvhNodes.push_back(root);
+
+	return 0;
+}
 
 int main(void)
 {
@@ -187,6 +204,15 @@ int main(void)
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssboshapes);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
 
+	// send BVH
+	GLuint bvhBuffer;
+	glGenBuffers(1, &bvhBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, bvhBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, scene.bvhNodes.size() * sizeof(BVHNode), scene.bvhNodes.data(), GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, bvhBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
+
+
 
 	/* GUI */
 	// imgui
@@ -248,9 +274,13 @@ int main(void)
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatLight), &flatScene.light);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
 
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
-			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data());
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+			if (animate) {
+				// TODO: only update animated shapes (spheres)
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
+				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data());
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+			}
+			
 
 			
 			// Compute shader dispatch
@@ -320,6 +350,10 @@ int main(void)
 
 		// Animate objects
 		if (animate) {
+			//for (int i : animatedIndices) {
+			//	std::cout << "idx: " << i << std::endl;
+			//}
+
 			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[0].get()))
 				bounceSphere(sphere, currentFrame, 10);
 			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[1].get()))
@@ -484,6 +518,7 @@ void generateScene()
 	scene.shapes[0]->material.ambientStrength = 0.2f;
 	scene.shapes[0]->material.diffuseStrength = 1;
 	scene.shapes[0]->material.specularStrength = 0.1f;
+	animatedIndices.push_back(scene.shapes.size() - 1);
 
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(12, 10, -8), 4.f));
 	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.58f, 0.18f, 0.48f);
@@ -491,6 +526,7 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0;
 	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.5f;
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	animatedIndices.push_back(scene.shapes.size() - 1);
 
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(20, 7.5, -8), 2.5f));
 	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.8f, 0.2f, 0.8f);
@@ -498,6 +534,7 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
 	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
+	animatedIndices.push_back(scene.shapes.size() - 1);
 
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 23, -8), 1.5f));
 	scene.shapes[0]->material.color = glm::vec3(0, 0.37f, 0);
@@ -523,50 +560,66 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
 	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
-	auto* triangle = dynamic_cast<Triangle*>(scene.shapes[scene.shapes.size() - 1].get());
-
 
 	/* 3D Model */
 	auto model = Model("models/monkey.obj");
 	//auto model = Model("models/sphere.obj");
-	auto monkey = model.meshes[0];
-	auto monkeyTriangles = mesh2triangles(monkey, glm::vec3(0,0,-30));
-	for (auto triangle : monkeyTriangles) {
+	auto mesh = model.meshes[0];
+	mesh.origin = glm::vec3(0, 0, -30);
+	auto meshTriangles = mesh.mesh2triangles();
+	for (int i = 0; i < meshTriangles.size(); ++i) {
+		auto triangle = meshTriangles[i];
+		/*if (i == 17) {
+			printTriangle(triangle);
+			break;
+		}*/
 		triangle.invert_normal();
-		scene.shapes.push_back(std::make_unique<Triangle>(triangle));
+		scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
 		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(179.f/255, 165.f/255, 61.f/255);
 		scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
 		scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
 		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
 		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
+		
 	}
-	std::cout << "Triangles added: " << monkeyTriangles.size() << std::endl;
+	//std::cout << "Triangles added: " << meshTriangles.size() << std::endl;
 
-	// bottom
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	// top
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	// left
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-25, 0, 0)));
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 0, 1);
+	// Bounding Box
+	auto bb = BoundingBox();
 
-	// right
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(25, 0, 0)));
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 0, 0);
-	// front
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 25)));
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 1, 0.35f);
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	// back
-	scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -25)));
-	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, .5f, 0);
-	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	// BVH
+	int i = buildBVH(scene.shapes, scene.bvhNodes, 0, scene.shapes.size());
+	std::cout << "bvhNodes: " << scene.bvhNodes.size() << std::endl;
+	std::cout << "result: " << i << std::endl;
+
+	std::cout << "shapes: " << scene.shapes.size() << std::endl;
+
+
+	//// bottom
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//// top
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//// left
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-25, 0, 0)));
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 0, 1);
+
+	//// right
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(25, 0, 0)));
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 0, 0);
+	//// front
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 25)));
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 1, 0.35f);
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+	//// back
+	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -25)));
+	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, .5f, 0);
+	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 
 	scene.camera.LookAt(scene.shapes[0]->origin);
 }

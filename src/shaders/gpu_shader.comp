@@ -70,6 +70,18 @@ vec3 getNormalFromShape(Shape shape, vec3 point){
     }
 };
 
+// BVH
+struct BVHNode{
+    vec3 boundsMin;
+    int leftChild;
+
+    vec3 boundsMax;
+	int rightChild;
+
+    int shapeIndex;
+    vec3 padding;
+};
+
 // Ray
 struct Ray{
     vec3 start;
@@ -98,6 +110,9 @@ layout(std430, binding = 2) buffer CameraBuffer{
 };
 layout(std430, binding = 3) buffer ShapesBuffer{
     Shape shapes[];
+};
+layout(std430, binding = 4) buffer BVHBuffer{
+    BVHNode bvhNodes[];
 };
 
 uniform vec2 screenRes;
@@ -163,6 +178,8 @@ Intersection getIntersectionTriangle_Barycentric(Shape shape, Ray ray){
         if (t > 0){
             intersection.intersect_type = (np > 0) ? INNER : OUTER;
             intersection.hit_point = getPointFromRay(ray, t);
+            // If OUTER, return. Change in case of refractions
+            if (np <= 0) return intersection; 
         }
         else {
             return intersection;
@@ -219,6 +236,8 @@ Intersection get_intersection(Shape shape, Ray ray){
             float t2 = (-bb + sD) / (2 * aa);
             if (t2 > 0) {
                 intersection.intersect_type = OUTER;
+                // If OUTER, return. Change in case of refractions
+                return intersection; 
                 intersection.hit_point = getPointFromRay(ray, t2);
                 return intersection;
             }
@@ -231,6 +250,8 @@ Intersection get_intersection(Shape shape, Ray ray){
         float t = -(shape.planeD + dot(shape.planeNormal, ray.start)) / np;
         if (t > 0){
             intersection.intersect_type = (np > 0) ? INNER : OUTER;
+            // If OUTER, return. Change in case of refractions
+            if (np <= 0) return intersection; 
             intersection.hit_point = getPointFromRay(ray, t);
         }
         else {
@@ -245,6 +266,8 @@ Intersection get_intersection(Shape shape, Ray ray){
         float t = -(shape.planeD + dot(shape.planeNormal, ray.start)) / np;
         if (t > 0){
             intersection.intersect_type = (np > 0) ? INNER : OUTER;
+            // If OUTER, return. Change in case of refractions
+            if (np <= 0) return intersection; 
             intersection.hit_point = getPointFromRay(ray, t);
         }
         else {

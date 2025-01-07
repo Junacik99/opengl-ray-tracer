@@ -38,6 +38,10 @@ struct Texture {
 
 class Mesh {
 public:
+    vector<Triangle> mesh2triangles();
+
+    glm::vec3 origin = glm::vec3(0);
+
     // mesh Data
     vector<Vertex>       vertices;
     vector<unsigned int> indices;
@@ -47,6 +51,7 @@ public:
     // constructor
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
     {
+
         this->vertices = vertices;
         this->indices = indices;
         this->textures = textures;
@@ -142,4 +147,20 @@ private:
         glBindVertexArray(0);
     }
 };
+
+inline vector<Triangle> Mesh::mesh2triangles() {
+    vector<Triangle> triangles;
+    for (int i = 0; i < indices.size(); i += 3) {
+        auto idx = indices[i];
+        auto idx2 = indices[i + 1];
+        auto idx3 = indices[i + 2];
+
+        auto p1 = vertices[idx].Position + origin;
+        auto p2 = vertices[idx2].Position + origin;
+        auto p3 = vertices[idx3].Position + origin;
+
+        triangles.push_back(Triangle(p1, p2, p3));
+    }
+    return triangles;
+}
 #endif
