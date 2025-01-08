@@ -98,6 +98,8 @@ const uint OUTER = 2;
 struct Intersection{
     uint intersect_type;
     vec3 hit_point;
+    vec3 hit_normal;
+    Material hit_material;
 };
 
 
@@ -341,11 +343,11 @@ vec3 phong(vec3 point, vec3 normal, vec3 viewDir, Light light, Material mat){
 }; 
 
 // BVH traversal
-bool rayIntersectsAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax, out float tMin, out float tMax) {
-    vec3 invDir = 1.0 / rayDir;
+bool rayIntersectsAABB(Ray ray, vec3 boxMin, vec3 boxMax, out float tMin, out float tMax) {
+    vec3 invDir = 1.0 / ray.dir;
 
-    vec3 t0 = (boxMin - rayOrigin) * invDir;
-    vec3 t1 = (boxMax - rayOrigin) * invDir;
+    vec3 t0 = (boxMin - ray.start) * invDir;
+    vec3 t1 = (boxMax - ray.start) * invDir;
 
     vec3 tMin3 = min(t0, t1);
     vec3 tMax3 = max(t0, t1);
@@ -357,9 +359,9 @@ bool rayIntersectsAABB(vec3 rayOrigin, vec3 rayDir, vec3 boxMin, vec3 boxMax, ou
 };
 
 bool intersectScene(Ray ray, out Intersection hit) {
-    int stack[64];       // Traversal stack
+    int stack[32];       // Traversal stack
     int stackIdx = 0;
-    stack[stackIdx++] = 0; // Push root node index
+    stack[stackIdx++] = bvhNodes.length() - 1; // Push root node index
 
     bool foundHit = false;
 //    float closestT = 1e20;
@@ -369,7 +371,7 @@ bool intersectScene(Ray ray, out Intersection hit) {
         Node node = bvhNodes[nodeIdx];
 
         float tMin, tMax;
-        if (!rayIntersectsAABB(ray.start, ray.dir, node.boundsMin, node.boundsMax, tMin, tMax)) {
+        if (!rayIntersectsAABB(ray, node.boundsMin, node.boundsMax, tMin, tMax)) {
             continue; // Skip node if ray misses bounding box
         }
 
@@ -380,13 +382,15 @@ bool intersectScene(Ray ray, out Intersection hit) {
                 hit = get_intersection(shapes[shapeIdx], ray);
                 if (hit.intersect_type == INNER) {
                     foundHit = true;
+                    hit.hit_normal = getNormalFromShape(shapes[shapeIdx], hit.hit_point);
+                    hit.hit_material = shapes[shapeIdx].material;
 //                    closestT = hit.t;
                 }
             }
         } else {
             // Internal node: push children
-            if (node.leftChild != -1) stack[stackIdx++] = node.leftChild;
             if (node.rightChild != -1) stack[stackIdx++] = node.rightChild;
+            if (node.leftChild != -1) stack[stackIdx++] = node.leftChild;
         }
     }
 
@@ -411,40 +415,54 @@ void main() {
     vec3 accumulatedColor = vec3(0);
     vec3 attenuation = vec3(1);
 
-    for (int depth=0; depth<maxBounces; ++depth){
+    for (int depth = 0; depth < maxBounces; ++depth){
+        // Traverse BVH
+        Intersection hit;
+        bool hitSomething = intersectScene(ray, hit);
+
+
         // Just high number, I dont want to divide by 0 to achieve infinity
-        float closestDist = 10000;
+//        float closestDist = 10000;
 
-        bool hitSomething = false;
-        vec3 hitColor = bgColor;
-        Material hitMaterial;
-        vec3 hitPoint;
-        vec3 hitNormal;
+//        bool hitSomething = false;
+//        vec3 hitColor = bgColor;
+//        Material hitMaterial;
+//        vec3 hitPoint;
+//        vec3 hitNormal;
 
-        // Closest intersection
-        for (int i=0; i<shapes.length(); ++i){
-            // Trace ray
-            Intersection s_hit = get_intersection(shapes[i], ray);
-            if (s_hit.intersect_type == INNER){
-            
-                float dist = distance(ray.start, s_hit.hit_point);
-                if (dist < closestDist) {
-                    closestDist = dist;
-                    hitSomething = true;
-
-                    hitPoint = s_hit.hit_point;
-                    hitNormal = getNormalFromShape(shapes[i], hitPoint);
-                    hitMaterial = shapes[i].material;
-                    hitColor = shapes[i].material.color;
-                }
-            }
-        }
+//        // Closest intersection
+//        for (int i=0; i<shapes.length(); ++i){
+//            // Trace ray
+//            Intersection s_hit = get_intersection(shapes[i], ray);
+//            if (s_hit.intersect_type == INNER){
+//            
+//                float dist = distance(ray.start, s_hit.hit_point);
+//                if (dist < closestDist) {
+//                    closestDist = dist;
+//                    hitSomething = true;
+//
+//                    hitPoint = s_hit.hit_point;
+//                    hitNormal = getNormalFromShape(shapes[i], hitPoint);
+//                    hitMaterial = shapes[i].material;
+//                    hitColor = shapes[i].material.color;
+//                }
+//            }
+//        }
 
         if (!hitSomething){
             // Nothing hit, add background color
             accumulatedColor += attenuation * bgColor; // not necessary imo
             break;
         }
+
+        ///// TODO: material is not properly calculated                    /////
+        ///// AND the distance of objects is not properly handled (z test) /////
+        
+        // Use hit data
+        vec3 hitPoint = hit.hit_point;
+        vec3 hitNormal = hit.hit_normal;
+        Material hitMaterial = hit.hit_material;
+        vec3 hitColor = hit.hit_material.color;
 
         // Shadow ray
         bool inShadow = false;
@@ -453,17 +471,27 @@ void main() {
         shadowRay.dir = normalize(light.position - hitPoint);
 
         // Shadow check
-        for (int i=0; i<shapes.length(); ++i){
-            Intersection shadowHit = get_intersection(shapes[i], shadowRay);
+//        for (int i=0; i<shapes.length(); ++i){
+//            Intersection shadowHit = get_intersection(shapes[i], shadowRay);
+//
+//            if (shadowHit.intersect_type == INNER) {
+//                float lightDist = distance(light.position, hitPoint);
+//                float hitDist = distance(shadowRay.start, shadowHit.hit_point);
+//                if(hitDist < lightDist){
+//                    inShadow = true;
+//                    break;
+//                }
+//            }
+//        }
 
-            if (shadowHit.intersect_type == INNER) {
-                float lightDist = distance(light.position, hitPoint);
+        // Shadow check using BVH
+        Intersection shadowHit;
+        if (intersectScene(shadowRay, shadowHit)){
+             float lightDist = distance(light.position, hitPoint);
                 float hitDist = distance(shadowRay.start, shadowHit.hit_point);
                 if(hitDist < lightDist){
-                    inShadow = true;
-                    break;
+                    inShadow = true; 
                 }
-            }
         }
 
         // Compute color of the hitPoint
