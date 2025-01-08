@@ -160,5 +160,8 @@
     <Object Include="models\sphere.obj">
       <Filter>Resource Files</Filter>
     </Object>
+    <Object Include="models\lowpolymonkey.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
   </ItemGroup>
 </Project>

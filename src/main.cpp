@@ -653,18 +653,15 @@ void generateScene()
 	//scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
 	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
 
-	///* 3D Model */
-	//auto model = Model("models/monkey.obj");
+	/* 3D Model */
+	//auto model = Model("models/lowpolymonkey.obj");
+	////auto model = Model("models/monkey.obj");
 	////auto model = Model("models/sphere.obj");
 	//auto mesh = model.meshes[0];
 	//mesh.origin = glm::vec3(0, 0, -30);
 	//auto meshTriangles = mesh.mesh2triangles();
 	//for (int i = 0; i < meshTriangles.size(); ++i) {
 	//	auto triangle = meshTriangles[i];
-	//	/*if (i == 17) {
-	//		printTriangle(triangle);
-	//		break;
-	//	}*/
 	//	triangle.invert_normal();
 	//	scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
 	//	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(179.f/255, 165.f/255, 61.f/255);
