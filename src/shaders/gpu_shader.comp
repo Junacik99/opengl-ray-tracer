@@ -125,6 +125,7 @@ layout(std430, binding = 5) buffer IndicesBuffer{
 
 uniform vec2 screenRes;
 uniform int maxBounces;
+uniform bool useBVH;
 uniform bool useFresnel;
 uniform bool useMollerTrumbore;
 
@@ -133,6 +134,24 @@ uniform bool useMollerTrumbore;
 vec3 getPointFromRay(Ray ray, float t){
     return ray.start + t*ray.dir;
 };
+float getTFromPointAndRay(Ray ray, vec3 point) {
+    vec3 diff = point - ray.start;
+    vec3 invDir = 1.0 / ray.dir; // Inverse of direction to avoid division by zero
+
+    // Compute t for each axis
+    float tx = diff.x * invDir.x;
+    float ty = diff.y * invDir.y;
+    float tz = diff.z * invDir.z;
+
+    // Check consistency: all t values should be approximately equal
+    if (abs(tx - ty) > 1e-4 || abs(tx - tz) > 1e-4) {
+        // If not consistent, the point doesn't lie exactly on the ray
+        return -1.0; // Return -1 or some invalid value
+    }
+
+    // Return any valid t (e.g., tx)
+    return tx;
+}
 Ray getRay(Camera cam, float ndcX, float ndcY){
     float imagePlaneHeight = 2. * tan(radians(cam.fov/2.));
     float imagePlaneWidth = imagePlaneHeight * cam.aspectRatio;
@@ -246,8 +265,8 @@ Intersection get_intersection(Shape shape, Ray ray){
                 intersection.intersect_type = OUTER;
                 // If OUTER, return. Change in case of refractions
                 return intersection; 
-                intersection.hit_point = getPointFromRay(ray, t2);
-                return intersection;
+//                intersection.hit_point = getPointFromRay(ray, t2);
+//                return intersection;
             }
         }
     }
@@ -358,13 +377,16 @@ bool rayIntersectsAABB(Ray ray, vec3 boxMin, vec3 boxMax, out float tMin, out fl
     return tMax >= tMin && tMax > 0.0;
 };
 
-bool intersectScene(Ray ray, out Intersection hit) {
-    int stack[32];       // Traversal stack
+Intersection intersectScene(Ray ray) {
+    int stack[10];       // Traversal stack
     int stackIdx = 0;
     stack[stackIdx++] = bvhNodes.length() - 1; // Push root node index
 
     bool foundHit = false;
-//    float closestT = 1e20;
+    float closestDist = 1e20;
+
+    Intersection hit;
+    hit.intersect_type = NONE;
 
     while (stackIdx > 0) {
         int nodeIdx = stack[--stackIdx];
@@ -380,11 +402,16 @@ bool intersectScene(Ray ray, out Intersection hit) {
             for (int i = 0; i < node.numShapes; ++i) {
                 int shapeIdx = bvhIndices[node.startShapeIdx + i];
                 hit = get_intersection(shapes[shapeIdx], ray);
+                
                 if (hit.intersect_type == INNER) {
-                    foundHit = true;
-                    hit.hit_normal = getNormalFromShape(shapes[shapeIdx], hit.hit_point);
-                    hit.hit_material = shapes[shapeIdx].material;
-//                    closestT = hit.t;
+                    float dist = distance(ray.start, hit.hit_point);
+                    
+                    if (dist < closestDist){
+                        closestDist = dist;
+                        foundHit = true;
+                        hit.hit_normal = getNormalFromShape(shapes[shapeIdx], hit.hit_point);
+                        hit.hit_material = shapes[shapeIdx].material;
+                    }
                 }
             }
         } else {
@@ -394,7 +421,7 @@ bool intersectScene(Ray ray, out Intersection hit) {
         }
     }
 
-    return foundHit;
+    return hit;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -411,127 +438,184 @@ void main() {
                 1. - 2. * texelCoord.y / screenRes.y);
     
 
-    
-    vec3 accumulatedColor = vec3(0);
-    vec3 attenuation = vec3(1);
+    if (useBVH){
+        vec3 accumulatedColor = vec3(0);
+        vec3 attenuation = vec3(1);
 
-    for (int depth = 0; depth < maxBounces; ++depth){
-        // Traverse BVH
-        Intersection hit;
-        bool hitSomething = intersectScene(ray, hit);
+        for (int depth = 0; depth < maxBounces; ++depth){
+            // Traverse BVH
+            Intersection hit = intersectScene(ray);
 
-
-        // Just high number, I dont want to divide by 0 to achieve infinity
-//        float closestDist = 10000;
-
-//        bool hitSomething = false;
-//        vec3 hitColor = bgColor;
-//        Material hitMaterial;
-//        vec3 hitPoint;
-//        vec3 hitNormal;
-
-//        // Closest intersection
-//        for (int i=0; i<shapes.length(); ++i){
-//            // Trace ray
-//            Intersection s_hit = get_intersection(shapes[i], ray);
-//            if (s_hit.intersect_type == INNER){
-//            
-//                float dist = distance(ray.start, s_hit.hit_point);
-//                if (dist < closestDist) {
-//                    closestDist = dist;
-//                    hitSomething = true;
-//
-//                    hitPoint = s_hit.hit_point;
-//                    hitNormal = getNormalFromShape(shapes[i], hitPoint);
-//                    hitMaterial = shapes[i].material;
-//                    hitColor = shapes[i].material.color;
-//                }
-//            }
-//        }
-
-        if (!hitSomething){
-            // Nothing hit, add background color
-            accumulatedColor += attenuation * bgColor; // not necessary imo
-            break;
-        }
-
-        ///// TODO: material is not properly calculated                    /////
-        ///// AND the distance of objects is not properly handled (z test) /////
-        
-        // Use hit data
-        vec3 hitPoint = hit.hit_point;
-        vec3 hitNormal = hit.hit_normal;
-        Material hitMaterial = hit.hit_material;
-        vec3 hitColor = hit.hit_material.color;
-
-        // Shadow ray
-        bool inShadow = false;
-        Ray shadowRay;
-        shadowRay.start = hitPoint + hitNormal * 1e-4;
-        shadowRay.dir = normalize(light.position - hitPoint);
-
-        // Shadow check
-//        for (int i=0; i<shapes.length(); ++i){
-//            Intersection shadowHit = get_intersection(shapes[i], shadowRay);
-//
-//            if (shadowHit.intersect_type == INNER) {
-//                float lightDist = distance(light.position, hitPoint);
-//                float hitDist = distance(shadowRay.start, shadowHit.hit_point);
-//                if(hitDist < lightDist){
-//                    inShadow = true;
-//                    break;
-//                }
-//            }
-//        }
-
-        // Shadow check using BVH
-        Intersection shadowHit;
-        if (intersectScene(shadowRay, shadowHit)){
-             float lightDist = distance(light.position, hitPoint);
-                float hitDist = distance(shadowRay.start, shadowHit.hit_point);
-                if(hitDist < lightDist){
-                    inShadow = true; 
-                }
-        }
-
-        // Compute color of the hitPoint
-        vec3 phongColor = phong(
-                                hitPoint, 
-                                hitNormal, 
-                                ray.dir, 
-                                light, 
-                                hitMaterial);
-        
-        // If in shadow, make color darker
-        if (inShadow) phongColor *= 0.3;
-
-        accumulatedColor += attenuation * phongColor;
-
-        if (hitMaterial.specularStrength > 0) {
-            // Generate reflection ray
-            vec3 reflectDir = reflect(ray.dir, hitNormal);
-            ray.start = hitPoint + hitNormal * 1e-4; // Offset to avoid selfintersection
-            ray.dir = reflectDir;
-
-            if (useFresnel){
-                float fresnel = pow(1.0 - max(dot(-ray.dir, hitNormal), 0.0), 5.0);
-                fresnel = clamp(fresnel, 0.0, 0.8);
-
-                // Blend attenuation
-                float reflectionWeight = hitMaterial.fresnelStrength * fresnel;
-                float materialWeight = 1.0 - reflectionWeight;
-
-                attenuation *= mix(hitColor, vec3(1.0), reflectionWeight);
-                accumulatedColor += materialWeight * hitColor * phongColor;
+            if (hit.intersect_type != INNER){
+                // Nothing hit, add background color
+                accumulatedColor += attenuation * bgColor; // not necessary imo
+                break;
             }
-            else
-                attenuation *= hitMaterial.specularStrength;
-            
+
+            ///// TODO: material is not properly calculated                    /////
+        
+            // Use hit data
+            vec3 hitPoint = hit.hit_point;
+            vec3 hitNormal = hit.hit_normal;
+            Material hitMaterial = hit.hit_material;
+            vec3 hitColor = hitMaterial.color;
+
+//            // Shadow ray
+//            bool inShadow = false;
+//            Ray shadowRay;
+//            shadowRay.start = hitPoint + hitNormal * 1e-4;
+//            shadowRay.dir = normalize(light.position - hitPoint);
+//
+//            // Shadow check using BVH
+//            Intersection shadowHit = intersectScene(shadowRay);
+//            if (shadowHit.intersect_type == INNER){
+//                 float lightDist = distance(light.position, hitPoint);
+//                    float hitDist = distance(shadowRay.start, shadowHit.hit_point);
+//                    if(hitDist < lightDist){
+//                        inShadow = true; 
+//                    }
+//            }
+
+//            // Compute color of the hitPoint
+//            vec3 phongColor = phong(
+//                                    hitPoint, 
+//                                    hitNormal, 
+//                                    ray.dir, 
+//                                    light, 
+//                                    hitMaterial);
+//        
+//            // If in shadow, make color darker
+//            if (inShadow) phongColor *= 0.3;
+
+            accumulatedColor += attenuation * hitColor;
+
+//            if (hitMaterial.specularStrength > 0) {
+//                // Generate reflection ray
+//                vec3 reflectDir = reflect(ray.dir, hitNormal);
+//                ray.start = hitPoint + hitNormal * 1e-4; // Offset to avoid selfintersection
+//                ray.dir = reflectDir;
+//    
+//                if (useFresnel){
+//                    float fresnel = pow(1.0 - max(dot(-ray.dir, hitNormal), 0.0), 5.0);
+//                    fresnel = clamp(fresnel, 0.0, 0.8);
+//    
+//                    // Blend attenuation
+//                    float reflectionWeight = hitMaterial.fresnelStrength * fresnel;
+//                    float materialWeight = 1.0 - reflectionWeight;
+//    
+//                    attenuation *= mix(hitColor, vec3(1.0), reflectionWeight);
+//                    accumulatedColor += materialWeight * hitColor * phongColor;
+//                }
+//                else
+//                    attenuation *= hitMaterial.specularStrength;
+//                
+//            }
+//            else break;
         }
-        else break;
+
+        value.xyz = accumulatedColor;
     }
 
-    value.xyz = accumulatedColor;
+    // No BVH
+    else{
+        vec3 accumulatedColor = vec3(0);
+        vec3 attenuation = vec3(1);
+
+        for (int depth=0; depth<maxBounces; ++depth){
+            // Just high number, I dont want to divide by 0 to achieve infinity
+            float closestDist = 1e20;
+
+            bool hitSomething = false;
+            vec3 hitColor = bgColor;
+            Material hitMaterial;
+            vec3 hitPoint;
+            vec3 hitNormal;
+
+            // Closest intersection
+            for (int i=0; i<shapes.length(); ++i){
+                // Trace ray
+                Intersection s_hit = get_intersection(shapes[i], ray);
+                if (s_hit.intersect_type == INNER){
+            
+                    float dist = distance(ray.start, s_hit.hit_point);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        hitSomething = true;
+
+                        hitPoint = s_hit.hit_point;
+                        hitNormal = getNormalFromShape(shapes[i], hitPoint);
+                        hitMaterial = shapes[i].material;
+                        hitColor = shapes[i].material.color;
+                    }
+                }
+            }
+
+            if (!hitSomething){
+                // Nothing hit, add background color
+                accumulatedColor += attenuation * bgColor; // not necessary imo
+                break;
+            }
+
+            // Shadow ray
+            bool inShadow = false;
+            Ray shadowRay;
+            shadowRay.start = hitPoint + hitNormal * 1e-4;
+            shadowRay.dir = normalize(light.position - hitPoint);
+
+            // Shadow check
+            for (int i=0; i<shapes.length(); ++i){
+                Intersection shadowHit = get_intersection(shapes[i], shadowRay);
+
+                if (shadowHit.intersect_type == INNER) {
+                    float lightDist = distance(light.position, hitPoint);
+                    float hitDist = distance(shadowRay.start, shadowHit.hit_point);
+                    if(hitDist < lightDist){
+                        inShadow = true;
+                        break;
+                    }
+                }
+            }
+
+            // Compute color of the hitPoint
+            vec3 phongColor = phong(
+                                    hitPoint, 
+                                    hitNormal, 
+                                    ray.dir, 
+                                    light, 
+                                    hitMaterial);
+        
+            // If in shadow, make color darker
+            if (inShadow) phongColor *= 0.3;
+
+            accumulatedColor += attenuation * phongColor;
+
+            if (hitMaterial.specularStrength > 0) {
+                // Generate reflection ray
+                vec3 reflectDir = reflect(ray.dir, hitNormal);
+                ray.start = hitPoint + hitNormal * 1e-4; // Offset to avoid selfintersection
+                ray.dir = reflectDir;
+
+                if (useFresnel){
+                    float fresnel = pow(1.0 - max(dot(-ray.dir, hitNormal), 0.0), 5.0);
+                    fresnel = clamp(fresnel, 0.0, 0.8);
+
+                    // Blend attenuation
+                    float reflectionWeight = hitMaterial.fresnelStrength * fresnel;
+                    float materialWeight = 1.0 - reflectionWeight;
+
+                    attenuation *= mix(hitColor, vec3(1.0), reflectionWeight);
+                    accumulatedColor += materialWeight * hitColor * phongColor;
+                }
+                else
+                    attenuation *= hitMaterial.specularStrength;
+            
+            }
+            else break;
+        }
+
+        value.xyz = accumulatedColor;
+    }
+    
 
     imageStore(imgOutput, texelCoord, value);
 }

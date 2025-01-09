@@ -105,8 +105,7 @@ struct FlatNode {
 	int numShapes;
 };
 std::vector<FlatNode> flatNodes;
-//std::vector<float> bvhBoxes; // Box 1 - min.x, min.y, min.z, max.x, max.y, max.z; Box 2 ...
-std::vector<int> bvhIndices; // Node 1 - left child idx, right child idx, shape indices; Node 2...
+std::vector<int> bvhIndices; // Node 1 - shape indices; Node 2...
 
 
 #endif // !FLAT_STRUCTURES_H

@@ -80,9 +80,6 @@ void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices) {
 
 		nodes.push_back(flatNode);
 
-		/*indices.push_back(node->leftChild);
-		indices.push_back(node->rightChild);*/
-
 		for (int idx : node->shapesIndices) {
 			indices.push_back(idx);
 		}
@@ -115,8 +112,8 @@ float lastFrame = 0.0f; // Time of last frame
 
 // Ray computation
 int maxBounces = 3;
-bool useFresnel = true;
-float fresnelStrength = 1.f;
+bool useFresnel = false;
+bool useBVH = false;
 
 void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude=2, float frequency=1) {
 	// Bouncing on the Y-axis
@@ -124,7 +121,7 @@ void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude=2, float fr
 }
 
 
-void split(std::unique_ptr<Node>& parentNode, int depth = 5) {
+void split(std::unique_ptr<Node>& parentNode, int depth = 10) {
 
 	// child case
 	if (depth <= 0) {
@@ -387,6 +384,7 @@ int main(void)
 			// Set window resolution in shader
 			computeShaderGPU.setVec2("screenRes", glm::vec2(WIDTH, HEIGHT));
 			computeShaderGPU.setInt("maxBounces", maxBounces);
+			computeShaderGPU.setBool("useBVH", useBVH);
 			computeShaderGPU.setBool("useFresnel", useFresnel);
 			computeShaderGPU.setBool("useMollerTrumbore", useMollerTrumbore);
 
@@ -406,6 +404,7 @@ int main(void)
 
 		ImGui::Checkbox("RTX ON", &rtxon);
 		ImGui::SliderInt("Max bounces", &maxBounces, 1, 10);
+		ImGui::Checkbox("Use BVH", &useBVH);
 		ImGui::Checkbox("Fresnel", &useFresnel);
 		ImGui::Checkbox("Animate", &animate);
 		ImGui::Checkbox("Moller-Trumbore", &useMollerTrumbore);
