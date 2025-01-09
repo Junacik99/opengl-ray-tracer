@@ -121,7 +121,7 @@ void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude=2, float fr
 }
 
 
-void split(std::unique_ptr<Node>& parentNode, int depth = 10) {
+void split(std::unique_ptr<Node>& parentNode, int depth = 5) {
 
 	// child case
 	if (depth <= 0) {
@@ -163,6 +163,14 @@ void split(std::unique_ptr<Node>& parentNode, int depth = 10) {
 
 	}
 	
+	// If one of the child would be empty, no reason to split anymore
+	if (leftNode->shapesIndices.empty() || rightNode->shapesIndices.empty()) {
+		parentNode->leftChild = -1;
+		parentNode->rightChild = -1;
+
+		return;
+	}
+
 	split(leftNode, depth-1);
 	split(rightNode, depth - 1);
 
@@ -171,9 +179,11 @@ void split(std::unique_ptr<Node>& parentNode, int depth = 10) {
 
 	scene.bvhNodes.push_back(std::move(rightNode));
 	parentNode->rightChild = scene.bvhNodes.size() - 1;
+
+	
 }
 
-int buildBVH(std::vector<std::unique_ptr<Shape>>& shapes, int start, int end) {
+int buildBVH(std::vector<std::unique_ptr<Shape>>& shapes) {
 	// Create root node
 	auto root = std::make_unique<Node>();
 
@@ -265,6 +275,23 @@ int main(void)
 
 	/* SSBO (Shader Storage Buffer Object */
 	FlatScene flatScene = serializeScene(scene); // Serialize scene
+
+	std::cout << "BVH Indices (" << bvhIndices.size() << "):" << std::endl;
+	for (auto idx : bvhIndices)
+		std::cout << idx << std::endl;
+
+	std::cout << std::endl << "Nodes (" << flatNodes.size() << "):" << std::endl;
+	for (int i = 0; i < flatNodes.size(); ++i) {
+		std::cout << "node " << i << std::endl;
+		std::cout << "Min:" << std::endl;
+		printPoint(flatNodes[i].boundsMin);
+		std::cout << "Max:" << std::endl;
+		printPoint(flatNodes[i].boundsMax);
+		std::cout << "L child: " << flatNodes[i].leftChild << " R child: " << flatNodes[i].rightChild << std::endl;
+		std::cout << "Start shape idx: " << flatNodes[i].startShapeIdx << " NumShapes: " << flatNodes[i].numShapes << std::endl << std::endl;
+
+
+	}
 
 	// send light
 	GLuint ssbolight;
@@ -709,7 +736,7 @@ void generateScene()
 
 
 	// BVH
-	int i = buildBVH(scene.shapes, 0, scene.shapes.size());
+	int i = buildBVH(scene.shapes);
 	std::cout << "result: " << i << std::endl;
 
 	std::cout << "shapes: " << scene.shapes.size() << std::endl;
