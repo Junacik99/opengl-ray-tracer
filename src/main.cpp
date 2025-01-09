@@ -113,7 +113,7 @@ float lastFrame = 0.0f; // Time of last frame
 // Ray computation
 int maxBounces = 3;
 bool useFresnel = false;
-bool useBVH = false;
+bool useBVH = true;
 
 void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude=2, float frequency=1) {
 	// Bouncing on the Y-axis
@@ -399,6 +399,15 @@ int main(void)
 				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
 				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data());
 				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+
+				// send BVH
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhboxes);
+				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatNode) * flatNodes.size(), flatNodes.data());
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
+
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhindices);
+				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(int) * bvhIndices.size(), bvhIndices.data());
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
 			}
 			
 
@@ -631,7 +640,8 @@ void generateScene()
 
 	// add shapes
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 10, -8), 5.f));
-	scene.shapes[0]->material.color = glm::vec3(0, 0.37f, 0);
+	//scene.shapes[0]->material.color = glm::vec3(0, 0.37f, 0);
+	scene.shapes[0]->material.color = glm::vec3(1, 0, 0);
 	scene.shapes[0]->material.fresnelStrength = 0;
 	scene.shapes[0]->material.ambientStrength = 0.2f;
 	scene.shapes[0]->material.diffuseStrength = 1;
@@ -740,6 +750,20 @@ void generateScene()
 	std::cout << "result: " << i << std::endl;
 
 	std::cout << "shapes: " << scene.shapes.size() << std::endl;
+
+	for (int idx = 0; idx < scene.shapes.size(); ++idx) {
+		glm::vec3 center;
+		if (auto sphere = dynamic_cast<Sphere*>(scene.shapes[idx].get()))
+			center = sphere->m_center;
+
+		else if (auto wall = dynamic_cast<Wall*>(scene.shapes[idx].get()))
+			center = (wall->start + wall->end()) * 0.5f;
+
+		else if (auto triangle = dynamic_cast<Triangle*>(scene.shapes[idx].get()))
+			center = triangle->center();
+		std::cout << "Shape " << idx << " has center: ";
+		printPoint(center);
+	}
 
 }
 
