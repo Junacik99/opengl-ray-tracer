@@ -269,10 +269,6 @@ int main(void)
 
 	
 
-	/*for (const auto& shape : scene.shapes) {
-		std::cout << shape->color.r*255 << ' ' << shape->color.g*255 << ' ' << shape->color.b*255 << std::endl;
-	}*/
-
 	/* SSBO (Shader Storage Buffer Object */
 	FlatScene flatScene = serializeScene(scene); // Serialize scene
 
@@ -394,7 +390,7 @@ int main(void)
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatLight), &flatScene.light);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
 
-			if (animate) {
+			/*if (animate)*/ {
 				// TODO: only update animated shapes (spheres)
 				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
 				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data());
@@ -640,8 +636,7 @@ void generateScene()
 
 	// add shapes
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 10, -8), 5.f));
-	//scene.shapes[0]->material.color = glm::vec3(0, 0.37f, 0);
-	scene.shapes[0]->material.color = glm::vec3(1, 0, 0);
+	scene.shapes[0]->material.color = glm::vec3(0, 0.37f, 0);
 	scene.shapes[0]->material.fresnelStrength = 0;
 	scene.shapes[0]->material.ambientStrength = 0.2f;
 	scene.shapes[0]->material.diffuseStrength = 1;
@@ -665,7 +660,7 @@ void generateScene()
 	animatedIndices.push_back(scene.shapes.size() - 1);
 
 	scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(0, 23, -8), 1.5f));
-	scene.shapes[0]->material.color = glm::vec3(0, 0.37f, 0);
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 0.37f, 0);
 	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 0;
 	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0;
 	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.5f;

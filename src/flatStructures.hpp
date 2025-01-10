@@ -95,7 +95,7 @@ struct FlatNode {
 	alignas(16) glm::vec3 boundsMin;
 	float padding1;
 
-	alignas(16)glm::vec3 boundsMax;
+	alignas(16) glm::vec3 boundsMax;
 	float padding2;
 	
 	int leftChild;       // Index of the left child (-1 for leaf)

@@ -406,7 +406,8 @@ Intersection intersectScene2(Ray ray){
 
             // Closest intersection
             for (int i=0; i<node.numShapes; i++){
-                int shapeIdx = node.startShapeIdx + i;
+//                int shapeIdx = node.startShapeIdx + i;
+                int shapeIdx = bvhIndices[node.startShapeIdx + i];
                 
                 // Trace ray
                 Intersection s_hit = get_intersection(shapes[shapeIdx], ray);
@@ -461,10 +462,6 @@ void main() {
                 accumulatedColor += attenuation * bgColor; // not necessary imo
                 break;
             }
-            accumulatedColor = hit.hit_material.color;
-            break;
-
-            ///// TODO: material is not properly calculated                    /////
         
             // Use hit data
             vec3 hitPoint = hit.hit_point;
