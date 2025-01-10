@@ -382,7 +382,7 @@ Intersection intersectScene2(Ray ray){
     Intersection intersection;
     intersection.intersect_type = NONE;
 
-    int stack[8];
+    int stack[64];
     int stackIdx = 0;
     stack[stackIdx++] = bvhNodes.length()-1;
     float closestDist = 1e20;
@@ -405,7 +405,6 @@ Intersection intersectScene2(Ray ray){
 
             // Closest intersection
             for (int i=0; i<node.numShapes; i++){
-//                int shapeIdx = node.startShapeIdx + i;
                 int shapeIdx = bvhIndices[node.startShapeIdx + i];
                 
                 // Trace ray

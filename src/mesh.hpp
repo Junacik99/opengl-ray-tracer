@@ -48,6 +48,18 @@ public:
     vector<Texture>      textures;
     unsigned int VAO;
 
+    glm::vec3 center() const {
+        glm::vec3 meshCenter = origin;
+
+        for (const Vertex& vertex : vertices) {
+            meshCenter += origin + vertex.Position;
+        }
+
+        meshCenter /= static_cast<float>(vertices.size());
+
+        return meshCenter;
+    }
+
     // constructor
     Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
     {
@@ -149,6 +161,8 @@ private:
 };
 
 inline vector<Triangle> Mesh::mesh2triangles() {
+    glm::vec3 center = this->center();
+
     vector<Triangle> triangles;
     for (int i = 0; i < indices.size(); i += 3) {
         auto idx = indices[i];
@@ -159,7 +173,17 @@ inline vector<Triangle> Mesh::mesh2triangles() {
         auto p2 = vertices[idx2].Position + origin;
         auto p3 = vertices[idx3].Position + origin;
 
-        triangles.push_back(Triangle(p1, p2, p3));
+        auto triangle = Triangle(p1, p2, p3);
+
+        float dotProduct = glm::dot(triangle.m_normal, center);
+
+        // TODO: It is still not right
+        if (dotProduct > 0.0f) {
+            // The triangle is facing towards the center
+            triangle.invert_normal();
+        }
+
+        triangles.push_back(triangle);
     }
     return triangles;
 }

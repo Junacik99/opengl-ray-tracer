@@ -80,9 +80,12 @@ void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices) {
 
 		nodes.push_back(flatNode);
 
-		for (int idx : node->shapesIndices) {
-			indices.push_back(idx);
+		if (node->leftChild == -1) {
+			for (int idx : node->shapesIndices) {
+				indices.push_back(idx);
+			}
 		}
+		
 	}
 }
 
@@ -90,11 +93,11 @@ void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices) {
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
-bool wireframe = false;
-bool zKeyPressed = false;
-bool rtxon = true;
-bool animate = false;
-bool useMollerTrumbore = false;
+bool wireframe = false;				// Wireframe, in normal rendering TODO: delete
+bool zKeyPressed = false;			// TODO: delete
+bool rtxon = true;					// Use GPU (true) or CPU ray-tracing
+bool animate = false;				// Animate certain objects
+bool useMollerTrumbore = true;		// For triangle intersection checks
 
 std::vector<int> animatedIndices;
 
@@ -121,7 +124,7 @@ void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude=2, float fr
 }
 
 
-void split(std::unique_ptr<Node>& parentNode, int depth = 5) {
+void split(std::unique_ptr<Node>& parentNode, int depth = 10) {
 
 	// child case
 	if (depth <= 0) {
@@ -382,30 +385,29 @@ int main(void)
 			// Update scene
 			flatScene = serializeScene(scene);
 
+			/////////////	TODO: glBufferSubData causes memory leaks!!!	/////////////
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbocamera);
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatCamera), &flatScene.camera);
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
 
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbolight);
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatLight), &flatScene.light);
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
 
-			/*if (animate)*/ {
+			if (animate) {
 				// TODO: only update animated shapes (spheres)
 				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
 				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data());
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
 
-				// send BVH
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhboxes);
+				// Update BVH
+				/*glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhboxes);
 				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatNode) * flatNodes.size(), flatNodes.data());
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
 
 				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhindices);
 				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(int) * bvhIndices.size(), bvhIndices.data());
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
+				*/
 			}
 			
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
+
 
 			
 			// Compute shader dispatch
@@ -677,7 +679,9 @@ void generateScene()
 	auto p1 = glm::vec3(-15, 20, 25);
 	auto p2 = glm::vec3(-12, 20, 10);
 	auto p3 = glm::vec3(-15, 0, 20);
-	scene.shapes.push_back(std::make_unique<Triangle>(p1, p2, p3));
+	auto triangle = Triangle(p1, p2, p3);
+	//triangle.invert_normal();
+	scene.shapes.push_back(std::make_unique<Triangle>(triangle));
 	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.19f, 0.66f, 0.32f);
 	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
 	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
@@ -693,16 +697,18 @@ void generateScene()
 	auto meshTriangles = mesh.mesh2triangles();
 	for (int i = 0; i < meshTriangles.size(); ++i) {
 		auto triangle = meshTriangles[i];
-		triangle.invert_normal();
+		//triangle.invert_normal();
 		scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
 		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(179.f/255, 165.f/255, 61.f/255);
 		scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
-		scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
+		/*scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
 		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
-		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
-		
+		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;*/
+		scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.2f;
+		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.8f;
+		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.1f;
 	}
-	////std::cout << "Triangles added: " << meshTriangles.size() << std::endl;
+	std::cout << "Triangles added: " << meshTriangles.size() << std::endl;
 
 
 	//// bottom
