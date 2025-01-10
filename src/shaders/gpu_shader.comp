@@ -399,7 +399,6 @@ Intersection intersectScene2(Ray ray){
 
         //// TODO: shapes are rendered only inside its bounding boxes, 
         ////       which causes problems during animation.
-        ////       Bounding boxes seem to ovelay other shapes.
 
         if (node.leftChild == -1){ // Leaf node (no need to check both children)
             bool hitSomething = false;

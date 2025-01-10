@@ -75,17 +75,8 @@ inline void BoundingBox::growToInclude(Sphere sphere)
 inline void BoundingBox::growToInclude(Wall wall)
 {
 	growToInclude(wall.start);
-
-	glm::vec3 arbitrary = glm::vec3(1, 0, 0);
-	if (glm::abs(glm::dot(arbitrary, wall.m_normal)) > 0.999f) {
-		arbitrary = glm::vec3(0, 1, 0);
-	}
-	glm::vec3 t1 = glm::normalize(glm::cross(wall.m_normal, arbitrary));
-	glm::vec3 t2 = glm::normalize(glm::cross(wall.m_normal, t1));
-
-	glm::vec3 end = wall.start + wall.width * t1 + wall.height * t2;
 	
-	growToInclude(end);
+	growToInclude(wall.end());
 
 
 }

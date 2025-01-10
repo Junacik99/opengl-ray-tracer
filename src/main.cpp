@@ -667,41 +667,41 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 
 	// wall (mirror)
-	scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-15, 23, -15), 10, 20, glm::vec3(-1, 0.2f, -1)));
+	scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-15, 23, 10), 10, 20, glm::vec3(-1, 0.2f, 0)));
 	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
 	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.1f;
 	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0;
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 1;
 
-	//// triangle
-	//auto p1 = glm::vec3(-15, 20, 15);
-	//auto p2 = glm::vec3(-12, 20, 0);
-	//auto p3 = glm::vec3(-15, 0, 10);
-	//scene.shapes.push_back(std::make_unique<Triangle>(p1, p2, p3));
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.19f, 0.66f, 0.32f);
-	//scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
-	//scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
-	//scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
+	// triangle
+	auto p1 = glm::vec3(-15, 20, 25);
+	auto p2 = glm::vec3(-12, 20, 10);
+	auto p3 = glm::vec3(-15, 0, 20);
+	scene.shapes.push_back(std::make_unique<Triangle>(p1, p2, p3));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.19f, 0.66f, 0.32f);
+	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
+	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
+	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
 
 	/* 3D Model */
-	//auto model = Model("models/lowpolymonkey.obj");
-	////auto model = Model("models/monkey.obj");
-	////auto model = Model("models/sphere.obj");
-	//auto mesh = model.meshes[0];
-	//mesh.origin = glm::vec3(0, 0, -30);
-	//auto meshTriangles = mesh.mesh2triangles();
-	//for (int i = 0; i < meshTriangles.size(); ++i) {
-	//	auto triangle = meshTriangles[i];
-	//	triangle.invert_normal();
-	//	scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
-	//	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(179.f/255, 165.f/255, 61.f/255);
-	//	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
-	//	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
-	//	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
-	//	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
-	//	
-	//}
+	auto model = Model("models/lowpolymonkey.obj");
+	//auto model = Model("models/monkey.obj");
+	//auto model = Model("models/sphere.obj");
+	auto mesh = model.meshes[0];
+	mesh.origin = glm::vec3(0, 0, -30);
+	auto meshTriangles = mesh.mesh2triangles();
+	for (int i = 0; i < meshTriangles.size(); ++i) {
+		auto triangle = meshTriangles[i];
+		triangle.invert_normal();
+		scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
+		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(179.f/255, 165.f/255, 61.f/255);
+		scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
+		scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
+		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
+		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
+		
+	}
 	////std::cout << "Triangles added: " << meshTriangles.size() << std::endl;
 
 

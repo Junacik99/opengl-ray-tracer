@@ -13,6 +13,9 @@ public:
 	float width, height;
 	Intersection get_intersection(Ray ray) const override;
 
+	// TODO: When faceing certain directions,
+	//		 end() is probably not calculated precisesly
+	//		 and it makes inaccurate bounding box
 	glm::vec3 end() const {
 		glm::vec3 arbitrary = glm::vec3(1, 0, 0);
 		if (glm::abs(glm::dot(m_normal, arbitrary)) > 0.999f) {
