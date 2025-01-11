@@ -32,12 +32,16 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void renderQuad();
 glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material);
 void generateScene();
+void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude, float frequency);
 void cpuRayTracer(std::vector<float>& pixelData);
 void printMaterial(Material mat);
 void printTriangle(Triangle triangle);
 void printPoint(glm::vec3 point);
 float randomFloat(float min, float max);
 float randomFloat01();
+FlatCamera serializeCamera(Camera cam);
+void serializeScene(FlatScene& flatScene);
+void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices);
 
 // BVH
 class Node
@@ -54,6 +58,9 @@ public:
 private:
 
 };
+void updateBVH();
+void split(std::unique_ptr<Node>& parentNode, int depth = 15);
+int buildBVH();
 
 struct Scene
 {
@@ -65,45 +72,7 @@ struct Scene
 
 } scene;
 
-FlatCamera serializeCamera(Camera cam);
-void serializeScene(const Scene& scene, FlatScene& flatScene);
 
-void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices) {
-
-	nodes.clear();
-	indices.clear();
-	
-	for (auto& node : scene.bvhNodes) {
-		FlatNode flatNode;
-
-		flatNode.boundsMin = node->box.Min;
-		flatNode.boundsMax = node->box.Max;
-		flatNode.leftChild = node->leftChild;
-		flatNode.rightChild = node->rightChild;
-		flatNode.startShapeIdx = indices.size();
-		flatNode.numShapes = node->shapesIndices.size();
-
-		nodes.push_back(flatNode);
-
-		if (node->leftChild == -1) {
-			for (int idx : node->shapesIndices) {
-				indices.push_back(idx);
-			}
-		}
-		
-	}
-}
-
-void updateBVH() {
-	for (auto& node : scene.bvhNodes) {
-		for (int idx : node->shapesIndices) 
-		{
-			if (scene.shapes[idx]->animated) {
-				node->box.growToInclude(scene.shapes[idx]);
-			}
-		}
-	}
-}
 
 
 
@@ -135,96 +104,6 @@ float lastFrame = 0.0f; // Time of last frame
 int maxBounces = 3;
 bool useFresnel = false;
 bool useBVH = true;
-
-void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude=2, float frequency=1) {
-	// Bouncing on the Y-axis
-	sphere->m_center.y = sphere->origin.y + amplitude * std::sin(frequency * elapsedTime);
-}
-
-
-void split(std::unique_ptr<Node>& parentNode, int depth = 10) {
-
-	// child case
-	if (depth <= 0) {
-		parentNode->leftChild = -1;
-		parentNode->rightChild = -1;
-		return;
-	}
-
-	glm::vec3 size = parentNode->box.Max - parentNode->box.Min;
-	int splitAxis = size.x > glm::max(size.y, size.z) ? 0 : size.y > size.z ? 1 : 2;
-	float splitPos = parentNode->box.center()[splitAxis];
-
-	auto leftNode = std::make_unique<Node>();
-	auto rightNode = std::make_unique<Node>();
-
-	for (auto idx : parentNode->shapesIndices) {
-		bool inA = false;
-		glm::vec3 center;
-
-		if (auto sphere = dynamic_cast<Sphere*>(scene.shapes[idx].get()))
-			center = sphere->m_center;
-
-		else if (auto wall = dynamic_cast<Wall*>(scene.shapes[idx].get()))
-		{
-			center = (wall->start + wall->end()) * 0.5f;
-		}
-
-		else if (auto triangle = dynamic_cast<Triangle*>(scene.shapes[idx].get()))
-			center = triangle->center();
-
-		inA = center[splitAxis] < splitPos;
-		if (inA) {
-			leftNode->box.growToInclude(scene.shapes[idx]);
-			leftNode->shapesIndices.push_back(idx);
-		}
-		else
-		{
-			rightNode->box.growToInclude(scene.shapes[idx]);
-			rightNode->shapesIndices.push_back(idx);
-		}
-
-	}
-	
-	// If one of the child would be empty, no reason to split anymore
-	if (leftNode->shapesIndices.empty() || rightNode->shapesIndices.empty()) {
-		parentNode->leftChild = -1;
-		parentNode->rightChild = -1;
-
-		return;
-	}
-
-	split(leftNode, depth-1);
-	split(rightNode, depth - 1);
-
-	scene.bvhNodes.push_back(std::move(leftNode));
-	parentNode->leftChild = scene.bvhNodes.size() - 1;
-
-	scene.bvhNodes.push_back(std::move(rightNode));
-	parentNode->rightChild = scene.bvhNodes.size() - 1;
-
-	
-}
-
-int buildBVH() {
-	scene.bvhNodes.clear();
-
-	// Create root node
-	auto root = std::make_unique<Node>();
-
-	BoundingBox bb = BoundingBox();
-	for (int i = 0; i < scene.shapes.size(); ++i) {
-		bb.growToInclude(scene.shapes[i]);
-		root->shapesIndices.push_back(i);
-	}
-	
-	root->box = bb;
-
-	split(root);
-	scene.bvhNodes.push_back(std::move(root));
-
-	return 0;
-}
 
 int main(void)
 {
@@ -290,7 +169,7 @@ int main(void)
 
 	/* SSBO (Shader Storage Buffer Object */
 	FlatScene flatScene;
-	serializeScene(scene, flatScene); // Serialize scene
+	serializeScene(flatScene); // Serialize scene
 
 	std::cout << "BVH Indices (" << bvhIndices.size() << "):" << std::endl;
 	/*for (auto idx : bvhIndices)
@@ -399,7 +278,7 @@ int main(void)
 			/***********************************************************************************************/
 			// Update scene
 			if (animate) updateBVH();
-			serializeScene(scene, flatScene);
+			serializeScene(flatScene);
 
 
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbocamera);
@@ -495,7 +374,7 @@ int main(void)
 		// Animate objects
 		if (animate) {
 			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[0].get()))
-				bounceSphere(sphere, currentFrame, 10);
+				bounceSphere(sphere, currentFrame, 10, 1);
 			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[1].get()))
 				bounceSphere(sphere, currentFrame, 7, 0.8);
 			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[2].get()))
@@ -722,6 +601,24 @@ void generateScene()
 	}
 	std::cout << "Triangles added: " << meshTriangles.size() << std::endl;
 
+	auto model2 = Model("models/lowpolymonkey.obj");
+	for (auto mesh : model2.meshes)
+	{
+		mesh.origin = glm::vec3(50, 0, -30);
+		auto meshTriangles = mesh.mesh2triangles();
+		for (int i = 0; i < meshTriangles.size(); ++i) {
+			auto triangle = meshTriangles[i];
+			scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
+			scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(.6f, .2f, .1f);
+			scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
+
+			scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.2f;
+			scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.8f;
+			scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+		}
+		std::cout << "Triangles added: " << meshTriangles.size() << std::endl;
+	}
+
 
 	// More spheres
 	for (int i = 0; i < 25; ++i) {
@@ -770,7 +667,7 @@ FlatCamera serializeCamera(Camera cam) {
 	return flatCam;
 }
 
-void serializeScene(const Scene& scene, FlatScene& flatScene) {
+void serializeScene(FlatScene& flatScene) {
 
 	// Serialize camera
 	flatScene.camera = serializeCamera(scene.camera);
@@ -962,4 +859,130 @@ float randomFloat01() {
 
 	// Generate and return a random float
 	return dis(gen);
+}
+
+void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices) {
+
+	nodes.clear();
+	indices.clear();
+
+	for (auto& node : scene.bvhNodes) {
+		FlatNode flatNode;
+
+		flatNode.boundsMin = node->box.Min;
+		flatNode.boundsMax = node->box.Max;
+		flatNode.leftChild = node->leftChild;
+		flatNode.rightChild = node->rightChild;
+		flatNode.startShapeIdx = indices.size();
+		flatNode.numShapes = node->shapesIndices.size();
+
+		nodes.push_back(flatNode);
+
+		if (node->leftChild == -1) {
+			for (int idx : node->shapesIndices) {
+				indices.push_back(idx);
+			}
+		}
+
+	}
+}
+
+void updateBVH() {
+	for (auto& node : scene.bvhNodes) {
+		for (int idx : node->shapesIndices)
+		{
+			if (scene.shapes[idx]->animated) {
+				node->box.growToInclude(scene.shapes[idx]);
+			}
+		}
+	}
+}
+
+void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude = 2, float frequency = 1) {
+	// Bouncing on the Y-axis
+	sphere->m_center.y = sphere->origin.y + amplitude * std::sin(frequency * elapsedTime);
+}
+
+void split(std::unique_ptr<Node>& parentNode, int depth) {
+
+	// child case
+	if (depth <= 0) {
+		parentNode->leftChild = -1;
+		parentNode->rightChild = -1;
+		return;
+	}
+
+	glm::vec3 size = parentNode->box.Max - parentNode->box.Min;
+	int splitAxis = size.x > glm::max(size.y, size.z) ? 0 : size.y > size.z ? 1 : 2;
+	float splitPos = parentNode->box.center()[splitAxis];
+
+	auto leftNode = std::make_unique<Node>();
+	auto rightNode = std::make_unique<Node>();
+
+	for (auto idx : parentNode->shapesIndices) {
+		bool inA = false;
+		glm::vec3 center;
+
+		if (auto sphere = dynamic_cast<Sphere*>(scene.shapes[idx].get()))
+			center = sphere->m_center;
+
+		else if (auto wall = dynamic_cast<Wall*>(scene.shapes[idx].get()))
+		{
+			center = (wall->start + wall->end()) * 0.5f;
+		}
+
+		else if (auto triangle = dynamic_cast<Triangle*>(scene.shapes[idx].get()))
+			center = triangle->center();
+
+		inA = center[splitAxis] < splitPos;
+		if (inA) {
+			leftNode->box.growToInclude(scene.shapes[idx]);
+			leftNode->shapesIndices.push_back(idx);
+		}
+		else
+		{
+			rightNode->box.growToInclude(scene.shapes[idx]);
+			rightNode->shapesIndices.push_back(idx);
+		}
+
+	}
+
+	// If one of the child would be empty, no reason to split anymore
+	if (leftNode->shapesIndices.empty() || rightNode->shapesIndices.empty()) {
+		parentNode->leftChild = -1;
+		parentNode->rightChild = -1;
+
+		return;
+	}
+
+	split(leftNode, depth - 1);
+	split(rightNode, depth - 1);
+
+	scene.bvhNodes.push_back(std::move(leftNode));
+	parentNode->leftChild = scene.bvhNodes.size() - 1;
+
+	scene.bvhNodes.push_back(std::move(rightNode));
+	parentNode->rightChild = scene.bvhNodes.size() - 1;
+
+
+}
+
+int buildBVH() {
+	scene.bvhNodes.clear();
+
+	// Create root node
+	auto root = std::make_unique<Node>();
+
+	BoundingBox bb = BoundingBox();
+	for (int i = 0; i < scene.shapes.size(); ++i) {
+		bb.growToInclude(scene.shapes[i]);
+		root->shapesIndices.push_back(i);
+	}
+
+	root->box = bb;
+
+	split(root);
+	scene.bvhNodes.push_back(std::move(root));
+
+	return 0;
 }
