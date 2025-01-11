@@ -695,7 +695,7 @@ void generateScene()
 	auto p2 = glm::vec3(-12, 20, 10);
 	auto p3 = glm::vec3(-15, 0, 20);
 	auto triangle = Triangle(p1, p2, p3);
-	//triangle.invert_normal();
+	triangle.invert_normal();
 	scene.shapes.push_back(std::make_unique<Triangle>(triangle));
 	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.19f, 0.66f, 0.32f);
 	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
