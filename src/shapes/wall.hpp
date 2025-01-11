@@ -13,19 +13,21 @@ public:
 	float width, height;
 	Intersection get_intersection(Ray ray) const override;
 
-	// TODO: When faceing certain directions,
-	//		 end() is probably not calculated precisesly
-	//		 and it makes inaccurate bounding box
 	glm::vec3 end() const {
-		glm::vec3 arbitrary = glm::vec3(1, 0, 0);
-		if (glm::abs(glm::dot(m_normal, arbitrary)) > 0.999f) {
-			arbitrary = glm::vec3(0, 1, 0);
+		glm::vec3 tangent1, tangent2;
+
+		// Compute tangent vectors based on the wall's normal
+		if (glm::abs(m_normal.x) > glm::abs(m_normal.y)) {
+			tangent1 = glm::normalize(glm::vec3(-m_normal.z, 0, m_normal.x));
+		}
+		else {
+			tangent1 = glm::normalize(glm::vec3(0, -m_normal.z, m_normal.y));
 		}
 
-		glm::vec3 t1 = glm::normalize(glm::cross(m_normal, arbitrary));
-		glm::vec3 t2 = glm::normalize(glm::cross(m_normal, t1));
+		tangent2 = glm::normalize(glm::cross(m_normal, tangent1));
 
-		return start + (width * t1) + (height * t2);
+		// Calculate the end point
+		return start + (width * tangent1) + (height * tangent2);
 	}
 
 private:
@@ -64,13 +66,5 @@ inline Intersection Wall::get_intersection(Ray ray) const {
 
 	return baseIntersection;
 }
-
-//inline BoundingBox Wall::getBoundingBox() const
-//{
-//	auto bb = BoundingBox();
-//	bb.growToInclude(*this);
-//	return bb;
-//}
-
 
 #endif // !WALL_H

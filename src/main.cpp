@@ -24,6 +24,7 @@
 #include "flatStructures.hpp"
 #include "model.hpp"
 #include "BoundingBox.hpp"
+#include <random>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -35,6 +36,8 @@ void cpuRayTracer(std::vector<float>& pixelData);
 void printMaterial(Material mat);
 void printTriangle(Triangle triangle);
 void printPoint(glm::vec3 point);
+float randomFloat(float min, float max);
+float randomFloat01();
 
 // BVH
 class Node
@@ -58,15 +61,17 @@ struct Scene
 	Light light;
 	std::vector < std::unique_ptr< Shape >> shapes;
 	
-	int bvhRootIdx;
 	std::vector<std::unique_ptr<Node>> bvhNodes;
 
 } scene;
 
 FlatCamera serializeCamera(Camera cam);
-FlatScene serializeScene(const Scene& scene);
+void serializeScene(const Scene& scene, FlatScene& flatScene);
 
 void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices) {
+
+	nodes.clear();
+	indices.clear();
 	
 	for (auto& node : scene.bvhNodes) {
 		FlatNode flatNode;
@@ -89,6 +94,19 @@ void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices) {
 	}
 }
 
+void updateBVH() {
+	for (auto& node : scene.bvhNodes) {
+		for (int idx : node->shapesIndices) 
+		{
+			if (scene.shapes[idx]->animated) {
+				node->box.growToInclude(scene.shapes[idx]);
+			}
+		}
+	}
+}
+
+
+
 // Window size
 const int WIDTH = 800;
 const int HEIGHT = 600;
@@ -96,7 +114,7 @@ const int HEIGHT = 600;
 bool wireframe = false;				// Wireframe, in normal rendering TODO: delete
 bool zKeyPressed = false;			// TODO: delete
 bool rtxon = true;					// Use GPU (true) or CPU ray-tracing
-bool animate = false;				// Animate certain objects
+bool animate = true;				// Animate certain objects
 bool useMollerTrumbore = true;		// For triangle intersection checks
 
 std::vector<int> animatedIndices;
@@ -148,7 +166,9 @@ void split(std::unique_ptr<Node>& parentNode, int depth = 10) {
 			center = sphere->m_center;
 
 		else if (auto wall = dynamic_cast<Wall*>(scene.shapes[idx].get()))
+		{
 			center = (wall->start + wall->end()) * 0.5f;
+		}
 
 		else if (auto triangle = dynamic_cast<Triangle*>(scene.shapes[idx].get()))
 			center = triangle->center();
@@ -186,26 +206,22 @@ void split(std::unique_ptr<Node>& parentNode, int depth = 10) {
 	
 }
 
-int buildBVH(std::vector<std::unique_ptr<Shape>>& shapes) {
+int buildBVH() {
+	scene.bvhNodes.clear();
+
 	// Create root node
 	auto root = std::make_unique<Node>();
 
 	BoundingBox bb = BoundingBox();
-	for (int i = 0; i < shapes.size(); ++i) {
-		bb.growToInclude(shapes[i]);
+	for (int i = 0; i < scene.shapes.size(); ++i) {
+		bb.growToInclude(scene.shapes[i]);
 		root->shapesIndices.push_back(i);
 	}
-	std::cout << "Bounding box:" << std::endl;
-	printPoint(bb.Min);
-	printPoint(bb.Max);
-	printPoint(bb.center());
-
 	
 	root->box = bb;
 
 	split(root);
 	scene.bvhNodes.push_back(std::move(root));
-	scene.bvhRootIdx = scene.bvhNodes.size() - 1;
 
 	return 0;
 }
@@ -273,14 +289,15 @@ int main(void)
 	
 
 	/* SSBO (Shader Storage Buffer Object */
-	FlatScene flatScene = serializeScene(scene); // Serialize scene
+	FlatScene flatScene;
+	serializeScene(scene, flatScene); // Serialize scene
 
 	std::cout << "BVH Indices (" << bvhIndices.size() << "):" << std::endl;
-	for (auto idx : bvhIndices)
-		std::cout << idx << std::endl;
+	/*for (auto idx : bvhIndices)
+		std::cout << idx << std::endl;*/
 
 	std::cout << std::endl << "Nodes (" << flatNodes.size() << "):" << std::endl;
-	for (int i = 0; i < flatNodes.size(); ++i) {
+	/*for (int i = 0; i < flatNodes.size(); ++i) {
 		std::cout << "node " << i << std::endl;
 		std::cout << "Min:" << std::endl;
 		printPoint(flatNodes[i].boundsMin);
@@ -288,9 +305,7 @@ int main(void)
 		printPoint(flatNodes[i].boundsMax);
 		std::cout << "L child: " << flatNodes[i].leftChild << " R child: " << flatNodes[i].rightChild << std::endl;
 		std::cout << "Start shape idx: " << flatNodes[i].startShapeIdx << " NumShapes: " << flatNodes[i].numShapes << std::endl << std::endl;
-
-
-	}
+	}*/
 
 	// send light
 	GLuint ssbolight;
@@ -383,9 +398,10 @@ int main(void)
 		else { // GPU ray tracing
 			/***********************************************************************************************/
 			// Update scene
-			flatScene = serializeScene(scene);
+			if (animate) updateBVH();
+			serializeScene(scene, flatScene);
 
-			/////////////	TODO: glBufferSubData causes memory leaks!!!	/////////////
+
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbocamera);
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatCamera), &flatScene.camera);
 
@@ -396,18 +412,17 @@ int main(void)
 				// TODO: only update animated shapes (spheres)
 				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
 				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data());
-
+				
 				// Update BVH
-				/*glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhboxes);
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhboxes);
 				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatNode) * flatNodes.size(), flatNodes.data());
 
 				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhindices);
 				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(int) * bvhIndices.size(), bvhIndices.data());
-				*/
+				
 			}
 			
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
-
 
 			
 			// Compute shader dispatch
@@ -669,7 +684,7 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
 
 	// wall (mirror)
-	scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-15, 23, 10), 10, 20, glm::vec3(-1, 0.2f, 0)));
+	scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-15, 23, 10), 30, 20, glm::vec3(-1, 0.2f, 0)));
 	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
 	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.1f;
 	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0;
@@ -689,21 +704,18 @@ void generateScene()
 	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
 
 	/* 3D Model */
-	auto model = Model("models/lowpolymonkey.obj");
-	//auto model = Model("models/monkey.obj");
+	//auto model = Model("models/lowpolymonkey.obj");
+	auto model = Model("models/monkey.obj");
 	//auto model = Model("models/sphere.obj");
 	auto mesh = model.meshes[0];
 	mesh.origin = glm::vec3(0, 0, -30);
 	auto meshTriangles = mesh.mesh2triangles();
 	for (int i = 0; i < meshTriangles.size(); ++i) {
 		auto triangle = meshTriangles[i];
-		//triangle.invert_normal();
 		scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
 		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(179.f/255, 165.f/255, 61.f/255);
 		scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
-		/*scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
-		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
-		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;*/
+
 		scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.2f;
 		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.8f;
 		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.1f;
@@ -711,61 +723,39 @@ void generateScene()
 	std::cout << "Triangles added: " << meshTriangles.size() << std::endl;
 
 
-	//// bottom
-	////scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-25, 25, 25), 50, 50, glm::vec3(0, 1, 0)));
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 1, 0), glm::vec3(0, 25, 0)));
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//// top
-	////scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-25, -25, 25), 50, 50, glm::vec3(0, -1, 0)));
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, -1, 0), glm::vec3(0, -25, 0)));
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//// left
-	////scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-25, 25, 25), 50, 50, glm::vec3(-1, 0, 0)));
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(-1, 0, 0), glm::vec3(-25, 0, 0)));
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 0, 1);
+	// More spheres
+	for (int i = 0; i < 25; ++i) {
 
-	//// right
-	////scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(25, 25, -25), 50, 50, glm::vec3(1, 0, 0)));
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(1, 0, 0), glm::vec3(25, 0, 0)));
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 0, 0);
-	//// front
-	////scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(25, 25, 25), 50, 50, glm::vec3(0, 0, 1)));
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 25)));
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, 1, 0.35f);
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
-	//// back
-	////scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-25, 25, -25), 50, 50, glm::vec3(0, 0, -1)));
-	//scene.shapes.push_back(std::make_unique<Plane>(glm::vec3(0, 0, -1), glm::vec3(0, 0, -25)));
-	//scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(1, .5f, 0);
-	//scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+		float posx = randomFloat(-40, 40);
+		float posz = randomFloat(-40, 40);
+
+		scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(posx, 23, posz), 1.5f));
+		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(randomFloat01(), randomFloat01(), randomFloat01());
+		scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = randomFloat01();
+		scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = randomFloat01();
+		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = randomFloat01();
+		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = randomFloat01();
+	}
+
+
+	// bottom
+	scene.shapes.push_back(std::make_unique<Wall>(glm::vec3(-100, 25, -100), 210, 210, glm::vec3(0, 1, 0)));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.65f, 0.17f, 0.35f);
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0;
+
 
 	scene.camera.LookAt(scene.shapes[0]->origin);
 
+	for (int i : animatedIndices) {
+		scene.shapes[i]->animated = true;
+	}
+
 
 	// BVH
-	int i = buildBVH(scene.shapes);
+	int i = buildBVH();
 	std::cout << "result: " << i << std::endl;
 
 	std::cout << "shapes: " << scene.shapes.size() << std::endl;
-
-	for (int idx = 0; idx < scene.shapes.size(); ++idx) {
-		glm::vec3 center;
-		if (auto sphere = dynamic_cast<Sphere*>(scene.shapes[idx].get()))
-			center = sphere->m_center;
-
-		else if (auto wall = dynamic_cast<Wall*>(scene.shapes[idx].get()))
-			center = (wall->start + wall->end()) * 0.5f;
-
-		else if (auto triangle = dynamic_cast<Triangle*>(scene.shapes[idx].get()))
-			center = triangle->center();
-		std::cout << "Shape " << idx << " has center: ";
-		printPoint(center);
-	}
-
 }
 
 FlatCamera serializeCamera(Camera cam) {
@@ -780,8 +770,7 @@ FlatCamera serializeCamera(Camera cam) {
 	return flatCam;
 }
 
-FlatScene serializeScene(const Scene& scene) {
-	FlatScene flatScene;
+void serializeScene(const Scene& scene, FlatScene& flatScene) {
 
 	// Serialize camera
 	flatScene.camera = serializeCamera(scene.camera);
@@ -871,7 +860,6 @@ FlatScene serializeScene(const Scene& scene) {
 
 	serializeBVH(flatNodes, bvhIndices);
 
-	return flatScene;
 }
 
 void cpuRayTracer(std::vector<float>& pixelData) {
@@ -951,4 +939,27 @@ void printTriangle(Triangle triangle) {
 
 void printPoint(glm::vec3 point) {
 	cout << point.x << " " << point.y << " " << point.z << endl;
+}
+
+float randomFloat(float min, float max) {
+	// Create a random device and seed the generator
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
+	// Create a uniform real distribution between min and max
+	std::uniform_real_distribution<float> dis(min, max);
+
+	// Generate and return a random float
+	return dis(gen);
+}
+float randomFloat01() {
+	// Create a random device and seed the generator
+	static std::random_device rd;
+	static std::mt19937 gen(rd());
+
+	// Create a uniform real distribution between 0.0 and 1.0
+	std::uniform_real_distribution<float> dis(0.0f, 1.0f);
+
+	// Generate and return a random float
+	return dis(gen);
 }

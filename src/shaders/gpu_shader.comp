@@ -265,8 +265,7 @@ Intersection get_intersection(Shape shape, Ray ray){
                 intersection.intersect_type = OUTER;
                 // If OUTER, return. Change in case of refractions
                 return intersection; 
-//                intersection.hit_point = getPointFromRay(ray, t2);
-//                return intersection;
+
             }
         }
     }
@@ -397,9 +396,6 @@ Intersection intersectScene2(Ray ray){
             continue; // Skip node if ray misses bounding box
         }
 
-        //// TODO: shapes are rendered only inside its bounding boxes, 
-        ////       which causes problems during animation.
-
         if (node.leftChild == -1){ // Leaf node (no need to check both children)
             bool hitSomething = false;
 
@@ -437,7 +433,7 @@ Intersection intersectScene2(Ray ray){
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 
-    vec3 bgColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.0), texelCoord.y / screenRes.y); // Gradient  
+    vec3 bgColor = mix(vec3(0.05, 0.07, 0.1), vec3(0.5, 0.7, 1.0), texelCoord.y / screenRes.y); // Gradient  
     vec4 value = vec4(bgColor, 1.0); // background color
 
     // Get ray from camera

@@ -19,6 +19,7 @@ public:
 
 	Material material;
 	glm::vec3 origin;
+	bool animated = false;
 
 private:
 

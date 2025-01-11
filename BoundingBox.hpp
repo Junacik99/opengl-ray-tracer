@@ -22,8 +22,6 @@ public:
 
 	void growToInclude(std::unique_ptr<Shape> &shape);
 
-    //int buildBVH(std::vector<std::unique_ptr<Shape>>& shapes, std::vector<BVHNode>& bvhNodes, int start, int end);
-
 	glm::vec3 Min, Max;
 
     glm::vec3 center() const {
@@ -75,10 +73,7 @@ inline void BoundingBox::growToInclude(Sphere sphere)
 inline void BoundingBox::growToInclude(Wall wall)
 {
 	growToInclude(wall.start);
-	
 	growToInclude(wall.end());
-
-
 }
 
 inline void BoundingBox::growToInclude(Mesh mesh)
@@ -99,93 +94,7 @@ inline void BoundingBox::growToInclude(std::unique_ptr<Shape> &shape)
 		growToInclude(*triangle);
 }
 
-//inline int BoundingBox::buildBVH(std::vector<std::unique_ptr<Shape>>& shapes, std::vector<BVHNode>& bvhNodes, int start, int end) {
-//    
-//}
 
-//inline int BoundingBox::buildBVH(std::vector<std::unique_ptr<Shape>>& shapes, std::vector<BVHNode>& bvhNodes, int start, int end) {
-//    //std::cout << "start " << start << "   end " << end << "   size " << shapes.size() << std::endl;
-//    //assert(start >= 0 && end <= shapes.size() && start < end);
-//    
-//    BVHNode node;
-//
-//    // Calculate bounding box for the current range of shapes
-//    BoundingBox bb;
-//    for (int i = start; i < end; ++i) {
-//        const Shape* shape = shapes[i].get();
-//        if (auto sphere = dynamic_cast<const Sphere*>(shape))
-//            bb.growToInclude(*sphere);
-//        else if (auto wall = dynamic_cast<const Wall*>(shape))
-//            bb.growToInclude(*wall);
-//        else if (auto triangle = dynamic_cast<const Triangle*>(shape))
-//            bb.growToInclude(*triangle);
-//        
-//    }
-//    node.boundsMin = bb.Min;
-//    node.boundsMax = bb.Max;
-//
-//    // Base case: single shape (leaf node)
-//    if (end - start <= 1) {
-//        node.leftChild = -1;
-//        node.rightChild = -1;
-//        node.shapeIndex = start; // Store the index of the shape in the leaf node
-//        bvhNodes.push_back(node);
-//        //std::cout << "added shape: " << start << "   " << bvhNodes.size() - 1 << std::endl;
-//        return bvhNodes.size() - 1; // Return the index of the newly added node
-//    }
-//
-//    // Compute the center point of each shape in the bounding box along the best axis
-//    int bestAxis = 0;
-//    float maxExtent = bb.Max.x - bb.Min.x;
-//    if (bb.Max.y - bb.Min.y > maxExtent) {
-//        bestAxis = 1;
-//        maxExtent = bb.Max.y - bb.Min.y;
-//    }
-//    if (bb.Max.z - bb.Min.z > maxExtent) {
-//        bestAxis = 2;
-//    }
-//
-//    float midpoint = 0.0f;
-//    for (int i = start; i < end; ++i) {
-//        const Shape* shape = shapes[i].get();
-//        BoundingBox shapeBB;
-//        if (auto sphere = dynamic_cast<const Sphere*>(shape))
-//            shapeBB.growToInclude(*sphere);
-//        else if (auto wall = dynamic_cast<const Wall*>(shape))
-//            shapeBB.growToInclude(*wall);
-//        else if (auto triangle = dynamic_cast<const Triangle*>(shape))
-//            shapeBB.growToInclude(*triangle);
-//
-//        midpoint += shapeBB.center()[bestAxis];
-//    }
-//    midpoint /= (end - start);
-//
-//    // Partition shapes based on midpoint along the best axis
-//    auto partitionPoint = std::partition(shapes.begin() + start, shapes.begin() + end,
-//        [&](const std::unique_ptr<Shape>& shapePtr) {
-//            const Shape* shape = shapePtr.get();
-//            BoundingBox shapeBB;
-//            if (auto sphere = dynamic_cast<const Sphere*>(shape))
-//                shapeBB.growToInclude(*sphere);
-//            else if (auto wall = dynamic_cast<const Wall*>(shape))
-//                shapeBB.growToInclude(*wall);
-//            else if (auto triangle = dynamic_cast<const Triangle*>(shape))
-//                shapeBB.growToInclude(*triangle);
-//
-//            return shapeBB.center()[bestAxis] < midpoint;
-//        });
-//
-//    int mid = std::distance(shapes.begin(), partitionPoint);
-//
-//    // Recursively build child nodes and store their indices
-//    node.leftChild = buildBVH(shapes, bvhNodes, start, mid);
-//    node.rightChild = buildBVH(shapes, bvhNodes, mid, end);
-//    node.shapeIndex = -1; // Non-leaf node
-//
-//    // Store the current node and return its index
-//    bvhNodes.push_back(node);
-//    return bvhNodes.size() - 1;
-//}
 
 
 #endif // !BOUNDINGBOX_H
