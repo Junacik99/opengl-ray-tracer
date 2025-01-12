@@ -32,7 +32,9 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void renderQuad();
 glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material);
 void generateScene();
+void generateScene2();
 void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude, float frequency);
+void updateWheelAnimations(float elapsedTime);
 void cpuRayTracer(std::vector<float>& pixelData);
 void printMaterial(Material mat);
 void printTriangle(Triangle triangle);
@@ -40,6 +42,7 @@ void printPoint(glm::vec3 point);
 float randomFloat(float min, float max);
 float randomFloat01();
 FlatCamera serializeCamera(Camera cam);
+FlatLight serializeLight(Light light);
 void serializeScene(FlatScene& flatScene);
 void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices);
 void updateScene(FlatScene& flatScene, GLuint ssbo);
@@ -62,7 +65,7 @@ private:
 };
 void updateBVH();
 void split(std::unique_ptr<Node>& parentNode, int depth = 15);
-int buildBVH();
+int buildBVH(int maxDepth = 15);
 
 struct Scene
 {
@@ -75,7 +78,12 @@ struct Scene
 } scene;
 
 
-
+struct Wheel {
+	std::vector<int> shapeIndices;
+	glm::vec3 rotationAxis;
+	float rotationAngle = 0;
+	glm::vec3 center;
+} wheels[4];
 
 
 // Window size
@@ -165,7 +173,8 @@ int main(void)
 
 
 	/* Scene */
-	generateScene();
+	//generateScene();
+	generateScene2();
 
 	
 
@@ -283,6 +292,7 @@ int main(void)
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbocamera);
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatCamera), &flatScene.camera);
 
+			flatScene.light = serializeLight(scene.light);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbolight);
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatLight), &flatScene.light);
 
@@ -370,12 +380,16 @@ int main(void)
 
 		// Animate objects
 		if (animate) {
+			// Scene 1
 			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[0].get()))
 				bounceSphere(sphere, currentFrame, 10, 1);
 			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[1].get()))
 				bounceSphere(sphere, currentFrame, 7, 0.8);
 			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[2].get()))
 				bounceSphere(sphere, currentFrame, 15, 1.5);
+
+			// Scene 2
+			updateWheelAnimations(currentFrame);
 		}
 	
 		// swap buffers and poll io events
@@ -521,7 +535,6 @@ void generateScene()
 	// Camera 
 	scene.camera = Camera();
 	scene.camera.Position = glm::vec3(30.0f, -5.0f, 40.0f);
-	scene.camera.MovementSpeed = 3.f;
 	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
 
 	// add light
@@ -646,7 +659,95 @@ void generateScene()
 
 
 	// BVH
-	int i = buildBVH();
+	int i = buildBVH(15);
+	std::cout << "result: " << i << std::endl;
+
+	std::cout << "shapes: " << scene.shapes.size() << std::endl;
+}
+
+void generateScene2() {
+	// Camera 
+	scene.camera = Camera();
+	scene.camera.Position = glm::vec3(0, -10.0f, 40);
+	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
+
+	// add light
+	scene.light = Light(glm::vec3(14.8f, -17, 17), glm::vec3(1), 26);
+
+	// 3D Model
+	glm::vec3 origin(0, 0, 0);
+	auto model = Model("models/car.obj");
+	for (int i=0; i < model.meshes.size(); ++i)
+	{
+		auto mesh = model.meshes[i];
+		mesh.origin = origin;
+
+		Material material;
+		switch (i)
+		{
+		case 0: // Car
+			material.color = glm::vec3(19.f/255, 7.f/255, 92.f/255);
+			material.specularStrength = 0;
+			break;
+		case 1: // Wheels
+		case 2:
+		case 3:
+		case 4:
+			material.color = glm::vec3(.2f, .2f, .2f);
+			material.specularStrength = 0;
+			break;
+		case 5: // Road
+			material.color = glm::vec3(0);
+			material.specularStrength = .25f;
+			break;
+		default:
+			break;
+		}
+
+		glm::vec3 wheelCenter(0);
+
+		auto meshTriangles = mesh.mesh2triangles();
+		for (int j = 0; j < meshTriangles.size(); ++j) {
+			int idx = scene.shapes.size();
+			auto triangle = meshTriangles[j];
+			scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
+			scene.shapes[idx]->material = material;
+
+			if (i >= 1 && i <= 4) {
+				wheels[i-1].shapeIndices.push_back(idx);
+				scene.shapes[idx]->animated = true;
+				animatedIndices.push_back(idx);
+
+				wheelCenter += triangle.a;
+				wheelCenter += triangle.b;
+				wheelCenter += triangle.c;
+			}
+		}
+		std::cout << "Triangles added: " << meshTriangles.size() << std::endl;
+		
+		if (i >= 1 && i <= 4) {
+			wheels[i-1].rotationAxis = glm::vec3(0, 0, 1);
+			wheelCenter /= static_cast<float>(meshTriangles.size()*3);
+			wheels[i-1].center = wheelCenter;
+		}
+
+
+	}
+
+	// Add spheres as bg
+	for (int i = 0; i < 100; ++i) {
+		float posx = randomFloat(-30, 30);
+		float posy = randomFloat(-15, 0);
+
+		scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(posx, posy, -10), 1.5f));
+		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(randomFloat01(), randomFloat01(), randomFloat01());
+
+	}
+
+	scene.camera.LookAt(origin);
+
+	// BVH
+	int i = buildBVH(25);
 	std::cout << "result: " << i << std::endl;
 
 	std::cout << "shapes: " << scene.shapes.size() << std::endl;
@@ -664,14 +765,20 @@ FlatCamera serializeCamera(Camera cam) {
 	return flatCam;
 }
 
+FlatLight serializeLight(Light light) {
+	FlatLight flatLight;
+	flatLight.position = light.position;
+	flatLight.color = light.color;
+	return flatLight;
+}
+
 void serializeScene(FlatScene& flatScene) {
 
 	// Serialize camera
 	flatScene.camera = serializeCamera(scene.camera);
 
 	// Serialize light
-	flatScene.light.position = scene.light.position;
-	flatScene.light.color = scene.light.color;
+	flatScene.light = serializeLight(scene.light);
 
 	// Serialize shapes
 	std::vector<FlatShape> flatShapes;
@@ -919,6 +1026,33 @@ void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude = 2, float 
 	sphere->m_center.y = sphere->origin.y + amplitude * std::sin(frequency * elapsedTime);
 }
 
+void updateWheelAnimations(float elapsedTime) {
+	float rotationSpeed = 1;
+
+
+	for (auto& wheel : wheels) {
+		// Update rotation angle
+		wheel.rotationAngle = rotationSpeed * deltaTime;
+		//wheel.rotationAngle = fmod(wheel.rotationAngle, glm::two_pi<float>());
+
+		glm::vec3 center = wheel.center;
+		glm::mat4 translateToOrigin = glm::translate(glm::mat4(1.0f), -center);
+		glm::mat4 translateBack = glm::translate(glm::mat4(1.0f), center);
+
+		// Apply rotation to each triangle
+		glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), wheel.rotationAngle, wheel.rotationAxis);
+		glm::mat4 transform = translateBack * rotationMatrix * translateToOrigin;
+
+		for (int idx : wheel.shapeIndices) {
+			if (auto triangle = dynamic_cast<Triangle*>(scene.shapes[idx].get())) {
+				triangle->a = glm::vec3(transform * glm::vec4(triangle->a, 1.0f));
+				triangle->b = glm::vec3(transform * glm::vec4(triangle->b, 1.0f));
+				triangle->c = glm::vec3(transform * glm::vec4(triangle->c, 1.0f));
+			}
+		}
+	}
+}
+
 void split(std::unique_ptr<Node>& parentNode, int depth) {
 
 	// child case
@@ -983,7 +1117,7 @@ void split(std::unique_ptr<Node>& parentNode, int depth) {
 
 }
 
-int buildBVH() {
+int buildBVH(int maxDepth) {
 	scene.bvhNodes.clear();
 
 	// Create root node
@@ -997,7 +1131,7 @@ int buildBVH() {
 
 	root->box = bb;
 
-	split(root);
+	split(root, maxDepth);
 	scene.bvhNodes.push_back(std::move(root));
 
 	return 0;

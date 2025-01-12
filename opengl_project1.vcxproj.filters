@@ -163,11 +163,6 @@
     <Object Include="models\lowpolymonkey.obj">
       <Filter>Resource Files</Filter>
     </Object>
-    <Object Include="models\room.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
-    <Object Include="models\cart.obj">
-      <Filter>Resource Files</Filter>
-    </Object>
+    <Object Include="models\car.obj" />
   </ItemGroup>
 </Project>
