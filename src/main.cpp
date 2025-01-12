@@ -606,7 +606,7 @@ void generateScene()
 		for (int i = 0; i < meshTriangles.size(); ++i) {
 			auto triangle = meshTriangles[i];
 			scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
-			scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(.6f, .2f, .1f);
+			scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0, 1, .9f);
 			scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
 
 			scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.2f;
