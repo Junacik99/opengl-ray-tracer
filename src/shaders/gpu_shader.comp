@@ -495,7 +495,7 @@ void main() {
             if (hitMaterial.specularStrength > 0) {
                 // Generate reflection ray
                 vec3 reflectDir = reflect(ray.dir, hitNormal);
-                ray.start = hitPoint + hitNormal * 1e-5; // Offset to avoid selfintersection
+                ray.start = hitPoint + hitNormal * 1e-3; // Offset to avoid selfintersection
                 ray.dir = reflectDir;
     
                 if (useFresnel){

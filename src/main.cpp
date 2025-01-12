@@ -42,6 +42,8 @@ float randomFloat01();
 FlatCamera serializeCamera(Camera cam);
 void serializeScene(FlatScene& flatScene);
 void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices);
+void updateScene(FlatScene& flatScene, GLuint ssbo);
+FlatShape serializeShape(const std::unique_ptr<Shape>& shape);
 
 // BVH
 class Node
@@ -277,10 +279,7 @@ int main(void)
 		else { // GPU ray tracing
 			/***********************************************************************************************/
 			// Update scene
-			if (animate) updateBVH();
-			serializeScene(flatScene);
-
-
+			flatScene.camera = serializeCamera(scene.camera);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbocamera);
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatCamera), &flatScene.camera);
 
@@ -288,17 +287,15 @@ int main(void)
 			glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatLight), &flatScene.light);
 
 			if (animate) {
-				// TODO: only update animated shapes (spheres)
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboshapes);
-				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatShape) * flatScene.shapes.size(), flatScene.shapes.data());
-				
+				// Only update animated shapes (spheres)
+				updateScene(flatScene, ssboshapes);
+
 				// Update BVH
+				updateBVH();
+				serializeBVH(flatNodes, bvhIndices);
 				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhboxes);
 				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(FlatNode) * flatNodes.size(), flatNodes.data());
 
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbobvhindices);
-				glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(int) * bvhIndices.size(), bvhIndices.data());
-				
 			}
 			
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
@@ -467,7 +464,7 @@ void processInput(GLFWwindow* window) {
 
 	scene.camera.MovementSpeed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) ? SPEED * SPEEDAMPLIFIER : SPEED;
 
-	useMouse = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE;
+	useMouse = glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_RELEASE;
 	
 				
 }
@@ -628,10 +625,10 @@ void generateScene()
 
 		scene.shapes.push_back(std::make_unique<Sphere>(glm::vec3(posx, 23, posz), 1.5f));
 		scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(randomFloat01(), randomFloat01(), randomFloat01());
-		scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = randomFloat01();
+		/*scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = randomFloat01();
 		scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = randomFloat01();
 		scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = randomFloat01();
-		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = randomFloat01();
+		scene.shapes[scene.shapes.size() - 1]->material.specularStrength = randomFloat01();*/
 	}
 
 
@@ -679,76 +676,8 @@ void serializeScene(FlatScene& flatScene) {
 	// Serialize shapes
 	std::vector<FlatShape> flatShapes;
 	for (const auto& shape : scene.shapes) {
-		FlatShape flatShape;
-
-		if (auto* sphere = dynamic_cast<Sphere*>(shape.get())) {
-			flatShape.type = 0; // Sphere
-
-			flatShape.material.color = sphere->material.color;
-			flatShape.material.fresnelStrength = sphere->material.fresnelStrength;
-
-			flatShape.material.ambientStrength = sphere->material.ambientStrength;
-			flatShape.material.diffuseStrength = sphere->material.diffuseStrength;
-			flatShape.material.specularStrength = sphere->material.specularStrength;
-			flatShape.material.shininess = sphere->material.shininess;
-
-			flatShape.sphereCenter = sphere->m_center;
-			flatShape.sphereRadius = sphere->m_radius;
-		}
-		else if (auto* wall = dynamic_cast<Wall*>(shape.get())) {
-			flatShape.type = 2; // Wall
-
-			flatShape.material.color = wall->material.color;
-			flatShape.material.fresnelStrength = wall->material.fresnelStrength;
-
-			flatShape.material.ambientStrength = wall->material.ambientStrength;
-			flatShape.material.diffuseStrength = wall->material.diffuseStrength;
-			flatShape.material.specularStrength = wall->material.specularStrength;
-			flatShape.material.shininess = wall->material.shininess;
-
-			flatShape.planeNormal = wall->m_normal;
-			flatShape.planeD = wall->d;
-
-			flatShape.wallStart = wall->start;
-			flatShape.wallWidth = wall->width;
-			flatShape.wallHeight = wall->height;
-
-		}
-		else if (auto* triangle = dynamic_cast<Triangle*>(shape.get())) {
-			flatShape.type = 3; // Triangle
-
-			flatShape.material.color = triangle->material.color;
-			flatShape.material.fresnelStrength = triangle->material.fresnelStrength;
-
-			flatShape.material.ambientStrength = triangle->material.ambientStrength;
-			flatShape.material.diffuseStrength = triangle->material.diffuseStrength;
-			flatShape.material.specularStrength = triangle->material.specularStrength;
-			flatShape.material.shininess = triangle->material.shininess;
-
-			flatShape.planeNormal = triangle->m_normal;
-			flatShape.planeD = triangle->d;
-
-			flatShape.triP1 = triangle->a;
-			flatShape.triP2 = triangle->b;
-			flatShape.triP3 = triangle->c;
-
-		}
-		else if (auto* plane = dynamic_cast<Plane*>(shape.get())) {
-			flatShape.type = 1; // Plane
-
-			flatShape.material.color = plane->material.color;
-			flatShape.material.fresnelStrength = plane->material.fresnelStrength;
-
-			flatShape.material.ambientStrength = plane->material.ambientStrength;
-			flatShape.material.diffuseStrength = plane->material.diffuseStrength;
-			flatShape.material.specularStrength = plane->material.specularStrength;
-			flatShape.material.shininess = plane->material.shininess;
-
-			flatShape.planeNormal = plane->m_normal;
-			flatShape.planeD = plane->d;
-
-		}
 		
+		FlatShape flatShape = serializeShape(shape);
 
 		flatShapes.push_back(flatShape);
 	}
@@ -885,6 +814,93 @@ void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices) {
 		}
 
 	}
+}
+
+void updateScene(FlatScene& flatScene, GLuint ssbo)
+{
+	for (int i : animatedIndices) {
+		flatScene.shapes[i] = serializeShape(scene.shapes[i]);
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, sizeof(FlatShape) * i, sizeof(FlatShape), &flatScene.shapes[i]);
+
+	}
+
+	
+}
+
+FlatShape serializeShape(const std::unique_ptr<Shape>& shape)
+{
+	FlatShape flatShape;
+
+	if (auto* sphere = dynamic_cast<Sphere*>(shape.get())) {
+		flatShape.type = 0; // Sphere
+
+		flatShape.material.color = sphere->material.color;
+		flatShape.material.fresnelStrength = sphere->material.fresnelStrength;
+
+		flatShape.material.ambientStrength = sphere->material.ambientStrength;
+		flatShape.material.diffuseStrength = sphere->material.diffuseStrength;
+		flatShape.material.specularStrength = sphere->material.specularStrength;
+		flatShape.material.shininess = sphere->material.shininess;
+
+		flatShape.sphereCenter = sphere->m_center;
+		flatShape.sphereRadius = sphere->m_radius;
+	}
+	else if (auto* wall = dynamic_cast<Wall*>(shape.get())) {
+		flatShape.type = 2; // Wall
+
+		flatShape.material.color = wall->material.color;
+		flatShape.material.fresnelStrength = wall->material.fresnelStrength;
+
+		flatShape.material.ambientStrength = wall->material.ambientStrength;
+		flatShape.material.diffuseStrength = wall->material.diffuseStrength;
+		flatShape.material.specularStrength = wall->material.specularStrength;
+		flatShape.material.shininess = wall->material.shininess;
+
+		flatShape.planeNormal = wall->m_normal;
+		flatShape.planeD = wall->d;
+
+		flatShape.wallStart = wall->start;
+		flatShape.wallWidth = wall->width;
+		flatShape.wallHeight = wall->height;
+
+	}
+	else if (auto* triangle = dynamic_cast<Triangle*>(shape.get())) {
+		flatShape.type = 3; // Triangle
+
+		flatShape.material.color = triangle->material.color;
+		flatShape.material.fresnelStrength = triangle->material.fresnelStrength;
+
+		flatShape.material.ambientStrength = triangle->material.ambientStrength;
+		flatShape.material.diffuseStrength = triangle->material.diffuseStrength;
+		flatShape.material.specularStrength = triangle->material.specularStrength;
+		flatShape.material.shininess = triangle->material.shininess;
+
+		flatShape.planeNormal = triangle->m_normal;
+		flatShape.planeD = triangle->d;
+
+		flatShape.triP1 = triangle->a;
+		flatShape.triP2 = triangle->b;
+		flatShape.triP3 = triangle->c;
+
+	}
+	else if (auto* plane = dynamic_cast<Plane*>(shape.get())) {
+		flatShape.type = 1; // Plane
+
+		flatShape.material.color = plane->material.color;
+		flatShape.material.fresnelStrength = plane->material.fresnelStrength;
+
+		flatShape.material.ambientStrength = plane->material.ambientStrength;
+		flatShape.material.diffuseStrength = plane->material.diffuseStrength;
+		flatShape.material.specularStrength = plane->material.specularStrength;
+		flatShape.material.shininess = plane->material.shininess;
+
+		flatShape.planeNormal = plane->m_normal;
+		flatShape.planeD = plane->d;
+
+	}
+	return flatShape;
 }
 
 void updateBVH() {
