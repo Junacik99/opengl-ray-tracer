@@ -29,9 +29,6 @@
     <ClCompile Include="C:\Users\Martin\Documents\libraries\glad\src\glad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\stb_img_implementation.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="imgui\imgui_demo.cpp">
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
@@ -141,7 +138,7 @@
     <ClInclude Include="src\model.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
-    <ClInclude Include="BoundingBox.hpp">
+    <ClInclude Include="src\BoundingBox.hpp">
       <Filter>Source Files\src</Filter>
     </ClInclude>
   </ItemGroup>
@@ -163,6 +160,8 @@
     <Object Include="models\lowpolymonkey.obj">
       <Filter>Resource Files</Filter>
     </Object>
-    <Object Include="models\car.obj" />
+    <Object Include="models\car.obj">
+      <Filter>Resource Files</Filter>
+    </Object>
   </ItemGroup>
 </Project>

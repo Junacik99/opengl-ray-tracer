@@ -5,7 +5,6 @@
 #include <glfw3.h>
 #include <iostream>
 #include "shader.hpp"
-#include "stb_image.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -26,27 +25,45 @@
 #include "BoundingBox.hpp"
 #include <random>
 
+// For resizing window
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+
+// Processing input
 void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+
+// Render quad with the texture obtained from Compute Shader
 void renderQuad();
+
+// Phong shading (for CPU only)
 glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material);
-void generateScene();
-void generateScene2();
+
+void generateScene();	// Generate scene with monkeys
+void generateScene2();	// A scene with the car
+
+// Animate objects
 void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude, float frequency);
 void updateWheelAnimations(float elapsedTime);
+
+// Simpler and slower ray-tracing on CPU
 void cpuRayTracer(std::vector<float>& pixelData);
+
+// Debugging functions
 void printMaterial(Material mat);
 void printTriangle(Triangle triangle);
 void printPoint(glm::vec3 point);
+
+// Utility functions
 float randomFloat(float min, float max);
 float randomFloat01();
 FlatCamera serializeCamera(Camera cam);
 FlatLight serializeLight(Light light);
 void serializeScene(FlatScene& flatScene);
 void serializeBVH(std::vector<FlatNode>& nodes, std::vector<int>& indices);
-void updateScene(FlatScene& flatScene, GLuint ssbo);
 FlatShape serializeShape(const std::unique_ptr<Shape>& shape);
+
+// Serialize animated shapes every frame
+void updateScene(FlatScene& flatScene, GLuint ssbo);
 
 // BVH
 class Node
@@ -63,10 +80,11 @@ public:
 private:
 
 };
-void updateBVH();
-void split(std::unique_ptr<Node>& parentNode, int depth = 15);
-int buildBVH(int maxDepth = 15);
+void updateBVH();												// Enlarge nodes on animation
+void split(std::unique_ptr<Node>& parentNode, int depth = 15);	// Divide volume of node into two if possible
+int buildBVH(int maxDepth = 15);								// Build BVH
 
+// Logical structure of the scene (not sent to GPU)
 struct Scene
 {
 	Camera camera;
@@ -77,7 +95,7 @@ struct Scene
 
 } scene;
 
-
+// Arbitrary structure for animation of scene 2 with car
 struct Wheel {
 	std::vector<int> shapeIndices;
 	glm::vec3 rotationAxis;
@@ -90,8 +108,6 @@ struct Wheel {
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
-bool wireframe = false;				// Wireframe, in normal rendering TODO: delete
-bool zKeyPressed = false;			// TODO: delete
 bool rtxon = true;					// Use GPU (true) or CPU ray-tracing
 bool animate = true;				// Animate certain objects
 bool useMollerTrumbore = true;		// For triangle intersection checks
@@ -447,20 +463,6 @@ void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	// Toggle wireframe mode on Z key press
-	if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) {
-		if (!zKeyPressed) { // Detect key press event
-			if (wireframe)
-				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-			else
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			wireframe = !wireframe;
-			zKeyPressed = true; // Mark the key as pressed
-		}
-	}
-	else if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_RELEASE) {
-		zKeyPressed = false; // Reset the state when the key is released
-	}
 
 	// Camera control
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
