@@ -38,8 +38,9 @@ void renderQuad();
 // Phong shading (for CPU only)
 glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3& viewDir, const glm::vec3& objectColor, glm::vec3 lightPos, glm::vec3 lightColor, Material material);
 
-void generateScene();	// Generate scene with monkeys
+void generateScene1();	// Generate scene with monkeys
 void generateScene2();	// A scene with the car
+int SCENE = 2;			// 1 - monkeys | 2 - car
 
 // Animate objects
 void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude, float frequency);
@@ -64,6 +65,7 @@ FlatShape serializeShape(const std::unique_ptr<Shape>& shape);
 
 // Serialize animated shapes every frame
 void updateScene(FlatScene& flatScene, GLuint ssbo);
+
 
 // BVH
 class Node
@@ -189,8 +191,14 @@ int main(void)
 
 
 	/* Scene */
-	//generateScene();
-	generateScene2();
+	switch (SCENE)
+	{
+	case 1: generateScene1(); break;
+	case 2: generateScene2(); break;
+	default:
+		generateScene1();
+		break;
+	}
 
 	
 
@@ -532,7 +540,7 @@ glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3
 	return result;
 }
 
-void generateScene()
+void generateScene1()
 {
 	// Camera 
 	scene.camera = Camera();
