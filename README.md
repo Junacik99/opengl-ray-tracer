@@ -1,7 +1,12 @@
 # OpenGL Ray Tracer
 A simple ray-tracer written in GLSL for Compute Shader.
 This project serves as a demo to showcase the ray-tracer working in real-time with animations. The ray-tracer runs in the compute shader, however, calculations for animations, BVH and camera control runs on CPU side. 
-There are two sample scenes inside this demo. Scene 1 - a monkey scene contains 1240 shapes (planes, spheres and triangles) with animated spheres. The scene runs in resolution 800x600 on NVIDIA RTX 3070 with 30+ FPS. Scene 2 - a car scene contains 4022 triangles and 100 spheres and runs with 10 FPS on average. The car has rotating wheels.
+There are two sample scenes inside this demo. Scene 1 - a monkey scene contains 1240 shapes (planes, spheres and triangles) with animated spheres. The scene runs in resolution 800x600 on NVIDIA RTX 3070 with 30+ FPS. Scene 2 - a car scene contains 4022 triangles and 100 spheres and runs with 10 FPS on average. The car has rotating wheels. 
+
+Demo video:
+
+<a href="https://youtu.be/EGRmm_cyw8g" target="_blank"><img src="http://img.youtube.com/vi/EGRmm_cyw8g/0.jpg" 
+alt="Demo video of the project" width="240" height="180" border="10" /></a>
 
 ## Implementation Details
 The ray-tracer runs in the Compute shader. It requires certain flatten structures (padded to 16bit) to understand the scene:
