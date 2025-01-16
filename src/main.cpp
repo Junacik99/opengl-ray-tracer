@@ -40,7 +40,7 @@ glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3
 
 void generateScene1();	// Generate scene with monkeys
 void generateScene2();	// A scene with the car
-int SCENE = 2;			// 1 - monkeys | 2 - car
+int SCENE = 1;			// 1 - monkeys | 2 - car
 
 // Animate objects
 void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude, float frequency);

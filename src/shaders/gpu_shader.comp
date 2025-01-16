@@ -248,8 +248,8 @@ Intersection get_intersection(Shape shape, Ray ray){
         vec3 dir = ray.dir;
 
         float aa = dot(dir,dir);
-        float bb = 2 * (dot(dir, start-shape.sphereCenter));
-        float cc = dot(start-shape.sphereCenter, start-shape.sphereCenter) - shape.sphereRadius * shape.sphereRadius;
+        float bb = 2 * (dot(dir, start - shape.sphereCenter));
+        float cc = dot(start - shape.sphereCenter, start - shape.sphereCenter) - shape.sphereRadius * shape.sphereRadius;
         float D = bb * bb - 4 * aa * cc;
         
         if (D > 0){
@@ -471,7 +471,7 @@ void main() {
 
             // Shadow check using BVH
             Intersection shadowHit = intersectScene2(shadowRay);
-            if (shadowHit.intersect_type == INNER){
+            if (shadowHit.intersect_type != NONE){
                  float lightDist = distance(light.position, hitPoint);
                     float hitDist = distance(shadowRay.start, shadowHit.hit_point);
                     if(hitDist < lightDist){
