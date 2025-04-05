@@ -40,7 +40,8 @@ glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3
 
 void generateScene1();	// Generate scene with monkeys
 void generateScene2();	// A scene with the car
-int SCENE = 1;			// 1 - monkeys | 2 - car
+void generateScene3();	// Triangle
+int SCENE = 3;			// 1 - monkeys | 2 - car | 3 - Triangle
 
 // Animate objects
 void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude, float frequency);
@@ -110,8 +111,8 @@ struct Wheel {
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
-bool rtxon = true;					// Use GPU (true) or CPU ray-tracing
-bool animate = true;				// Animate certain objects
+bool rtxon = false;					// Use GPU (true) or CPU ray-tracing
+bool animate = false;				// Animate certain objects
 bool useMollerTrumbore = true;		// For triangle intersection checks
 
 std::vector<int> animatedIndices;
@@ -195,6 +196,7 @@ int main(void)
 	{
 	case 1: generateScene1(); break;
 	case 2: generateScene2(); break;
+	case 3: generateScene3(); break;
 	default:
 		generateScene1();
 		break;
@@ -290,7 +292,7 @@ int main(void)
 		processInput(window);
 
 		if (!rtxon) { // CPU ray tracing
-			// No phong, fresnel, shadows... Just laggy ray tracing with diffuse colors
+			// No fresnel, shadows... Just laggy ray tracing with diffuse colors
 			/***********************************************************************************************/
 			cpuRayTracer(pixelData);
 
@@ -389,12 +391,14 @@ int main(void)
 		ImGui::SliderFloat("Y pos", &scene.light.position.y, -17, 17);
 		ImGui::SliderFloat("Z pos", &scene.light.position.z, -17, 17);
 
-		ImGui::Text("Mirror");
-		ImGui::SliderFloat("fresnel", &scene.shapes[4]->material.fresnelStrength, 0, 1);
-		ImGui::SliderFloat("ambient", &scene.shapes[4]->material.ambientStrength, 0, 1);
-		ImGui::SliderFloat("diffuse", &scene.shapes[4]->material.diffuseStrength, 0, 1);
-		ImGui::SliderFloat("specular", &scene.shapes[4]->material.specularStrength, 0, 1);
-		ImGui::SliderInt("shininess", &scene.shapes[4]->material.shininess, 0, 100);
+		if (SCENE == 1) {
+			ImGui::Text("Mirror");
+			ImGui::SliderFloat("fresnel", &scene.shapes[4]->material.fresnelStrength, 0, 1);
+			ImGui::SliderFloat("ambient", &scene.shapes[4]->material.ambientStrength, 0, 1);
+			ImGui::SliderFloat("diffuse", &scene.shapes[4]->material.diffuseStrength, 0, 1);
+			ImGui::SliderFloat("specular", &scene.shapes[4]->material.specularStrength, 0, 1);
+			ImGui::SliderInt("shininess", &scene.shapes[4]->material.shininess, 0, 100);
+		}
 
 		ImGui::End();
 
@@ -405,15 +409,23 @@ int main(void)
 		// Animate objects
 		if (animate) {
 			// Scene 1
-			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[0].get()))
-				bounceSphere(sphere, currentFrame, 10, 1);
-			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[1].get()))
-				bounceSphere(sphere, currentFrame, 7, 0.8);
-			if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[2].get()))
-				bounceSphere(sphere, currentFrame, 15, 1.5);
-
+			if (SCENE == 1) {
+				if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[0].get()))
+					bounceSphere(sphere, currentFrame, 10, 1);
+				if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[1].get()))
+					bounceSphere(sphere, currentFrame, 7, 0.8);
+				if (auto* sphere = dynamic_cast<Sphere*>(scene.shapes[2].get()))
+					bounceSphere(sphere, currentFrame, 15, 1.5);
+			}
 			// Scene 2
-			updateWheelAnimations(currentFrame);
+			else if (SCENE == 2) {
+				updateWheelAnimations(currentFrame);
+			}
+			// Scene 3
+			else {
+
+			}
+			
 		}
 	
 		// swap buffers and poll io events
@@ -815,6 +827,14 @@ void cpuRayTracer(std::vector<float>& pixelData) {
 			float closestDist = std::numeric_limits<float>::max();
 
 			for (const auto& shape : scene.shapes) {
+				// Set intersection algorithm for triangles
+				if (auto triangle = dynamic_cast<Triangle*>(shape.get())) {
+					if (useMollerTrumbore)
+						triangle->int_alg = MT;
+					else
+						triangle->int_alg = BARYCENTRIC;
+				}
+
 				// Trace ray
 				Intersection s_hit = shape->get_intersection(ray);
 				if (s_hit.intersect_type == INNER) { // Hit!
@@ -1145,4 +1165,27 @@ int buildBVH(int maxDepth) {
 	scene.bvhNodes.push_back(std::move(root));
 
 	return 0;
+}
+
+
+void generateScene3() {
+	// Camera 
+	scene.camera = Camera();
+	scene.camera.Position = glm::vec3(0, -10.0f, 40);
+	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
+
+	// add light
+	scene.light = Light(glm::vec3(14.8f, -17, 17), glm::vec3(1), 26);
+
+	auto origin = glm::vec3(0, 0, 0);
+
+	scene.shapes.push_back(std::make_unique<Triangle>(origin, origin + glm::vec3(5, 0, 0), origin + glm::vec3(2.5f, -5, 0)));
+
+	scene.camera.LookAt(origin);
+
+	// BVH
+	int i = buildBVH(25);
+	std::cout << "result: " << i << std::endl;
+
+	std::cout << "shapes: " << scene.shapes.size() << std::endl;
 }

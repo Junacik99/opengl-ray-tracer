@@ -4,6 +4,12 @@
 #include "glm/glm.hpp"
 #include "plane.hpp"
 
+enum Intersect_alg
+{
+	BARYCENTRIC,
+	MT
+};
+
 class Triangle : public Plane
 {
 public:
@@ -21,6 +27,9 @@ public:
 	void invert_normal();
 
 	Intersection get_intersection(Ray ray) const override;
+
+	// Intersection algorithm
+	Intersect_alg int_alg = BARYCENTRIC;
 
 
 private:
@@ -53,33 +62,47 @@ inline void Triangle::invert_normal() {
 }
 
 inline Intersection Triangle::get_intersection(Ray ray) const {
-	Intersection baseIntersection = Plane::get_intersection(ray);
-	if (baseIntersection.intersect_type == NONE) return Intersection(NONE);
+	// Intersection using Barycentric coordinates
+	if (int_alg == BARYCENTRIC) {
+		Intersection baseIntersection = Plane::get_intersection(ray);
+		if (baseIntersection.intersect_type == NONE) return Intersection(NONE);
 
-	auto hitPoint = baseIntersection.hit_point;
+		auto hitPoint = baseIntersection.hit_point;
 
-	// Compute vectors for edges and point-to-vertex
-	glm::vec3 edge1 = b - a;
-	glm::vec3 edge2 = c - a;
-	glm::vec3 toPoint = hitPoint - a;
+		// Compute vectors for edges and point-to-vertex
+		glm::vec3 edge1 = b - a;
+		glm::vec3 edge2 = c - a;
+		glm::vec3 toPoint = hitPoint - a;
 
-	// Barycentric coordinates
-	float d00 = glm::dot(edge1, edge1);
-	float d01 = glm::dot(edge1, edge2);
-	float d11 = glm::dot(edge2, edge2);
-	float d20 = glm::dot(toPoint, edge1);
-	float d21 = glm::dot(toPoint, edge2);
+		// Barycentric coordinates
+		float d00 = glm::dot(edge1, edge1);
+		float d01 = glm::dot(edge1, edge2);
+		float d11 = glm::dot(edge2, edge2);
+		float d20 = glm::dot(toPoint, edge1);
+		float d21 = glm::dot(toPoint, edge2);
 
-	float denom = d00 * d11 - d01 * d01;
-	float v = (d11 * d20 - d01 * d21) / denom;
-	float w = (d00 * d21 - d01 * d20) / denom;
-	float u = 1.0 - v - w;
+		float denom = d00 * d11 - d01 * d01;
+		float v = (d11 * d20 - d01 * d21) / denom;
+		float w = (d00 * d21 - d01 * d20) / denom;
+		float u = 1.0 - v - w;
 
-	if (u < 0 || v < 0 || w < 0) {
+		if (u < 0 || v < 0 || w < 0) {
+			return Intersection(NONE);
+		}
+
+		return baseIntersection;
+	}
+	// Moller-Trumbore
+	else if (int_alg == MT) {
+
+	}
+	// TODO: intel embree check
+	
+	else {
+		std::cout << "Invalid CPU triangle intersection type" << std::endl;
 		return Intersection(NONE);
 	}
-
-	return baseIntersection;
+	
 }
 
 #endif // !TRIANGLE_H
