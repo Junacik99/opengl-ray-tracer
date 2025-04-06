@@ -30,8 +30,7 @@ public:
 
 	// Intersection algorithm
 	Intersect_alg int_alg = BARYCENTRIC;
-
-
+	
 private:
 	glm::vec3 get_normal(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3);
 };

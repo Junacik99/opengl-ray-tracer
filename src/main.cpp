@@ -24,6 +24,8 @@
 #include "model.hpp"
 #include "BoundingBox.hpp"
 #include <random>
+#include <embree4/rtcore.h>
+#include <embree4/rtcore_ray.h>
 
 // For resizing window
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -113,7 +115,7 @@ const int HEIGHT = 600;
 
 bool rtxon = false;					// Use GPU (true) or CPU ray-tracing
 bool animate = false;				// Animate certain objects
-bool useMollerTrumbore = true;		// For triangle intersection checks
+bool useMollerTrumbore = false;		// For triangle intersection checks
 
 std::vector<int> animatedIndices;
 
@@ -133,6 +135,13 @@ float lastFrame = 0.0f; // Time of last frame
 int maxBounces = 3;
 bool useFresnel = false;
 bool useBVH = true;
+
+// Embree device and scene
+RTCDevice g_embreeDevice = nullptr;
+RTCScene g_embreeScene = nullptr;
+void initEmbree(); 
+void cleanupEmbree(); 
+
 
 int main(void)
 {
@@ -190,6 +199,8 @@ int main(void)
 	// VS and FS for screen quad
 	Shader screenQuad("src/shaders/shader.vert", "src/shaders/shader.frag");
 
+	/* Embree */
+	initEmbree();
 
 	/* Scene */
 	switch (SCENE)
@@ -261,7 +272,6 @@ int main(void)
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * bvhIndices.size(), bvhIndices.data(), GL_STATIC_DRAW);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, ssbobvhindices);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
-
 
 
 	/* GUI */
@@ -1179,13 +1189,36 @@ void generateScene3() {
 
 	auto origin = glm::vec3(0, 0, 0);
 
-	scene.shapes.push_back(std::make_unique<Triangle>(origin, origin + glm::vec3(5, 0, 0), origin + glm::vec3(2.5f, -5, 0)));
+	auto t = Triangle(origin, origin + glm::vec3(5, 0, 0), origin + glm::vec3(2.5f, -5, 0));
+	scene.shapes.push_back(std::make_unique<Triangle>(t));
+
+	// Add to embree
+	RTCGeometry geom = rtcNewGeometry(g_embreeDevice, RTC_GEOMETRY_TYPE_TRIANGLE);
+	
+	float* vertices = (float*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, 3 * sizeof(float), 3);
+	vertices[0] = t.a.x; vertices[1] = t.a.y; vertices[2] = t.a.z;
+	vertices[3] = t.b.x; vertices[4] = t.b.y; vertices[5] = t.b.z;
+	vertices[6] = t.c.x; vertices[7] = t.c.y; vertices[8] = t.c.z;
+
+	unsigned* indices = (unsigned*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, 3 * sizeof(unsigned), 1);
+	indices[0] = 0; indices[1] = 1; indices[2] = 2;
+
+	rtcCommitGeometry(geom);
+	rtcAttachGeometryByID(g_embreeScene, geom, 0);
+	rtcReleaseGeometry(geom);
+	rtcCommitScene(g_embreeScene);
+
 
 	scene.camera.LookAt(origin);
 
-	// BVH
-	int i = buildBVH(25);
-	std::cout << "result: " << i << std::endl;
+}
 
-	std::cout << "shapes: " << scene.shapes.size() << std::endl;
+void initEmbree() {
+	g_embreeDevice = rtcNewDevice(nullptr);
+	g_embreeScene = rtcNewScene(g_embreeDevice);
+}
+
+void cleanupEmbree() {
+	if (g_embreeScene) rtcReleaseScene(g_embreeScene);
+	if (g_embreeDevice) rtcReleaseDevice(g_embreeDevice);
 }

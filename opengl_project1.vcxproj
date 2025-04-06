@@ -108,13 +108,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\junac\Documents\Marrtin\opengl projects\opengl_project1;D:\junac\Documents\Marrtin\opengl projects\opengl_project1\imgui;D:\junac\Documents\Marrtin\opengl projects\opengl_project1\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Martin\Documents\libraries\embree-4.4.0.x64.windows\include;D:\junac\Documents\Marrtin\opengl projects\opengl_project1;D:\junac\Documents\Marrtin\opengl projects\opengl_project1\imgui;D:\junac\Documents\Marrtin\opengl projects\opengl_project1\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;glfw3.lib;user32.lib;gdi32.lib;shell32.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Users\Martin\Documents\libraries\glfw-3.4.bin.WIN64\lib-vc2022;D:\junac\Documents\Marrtin\SKOLA\VUT\PGR\assimp\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>tbb12.lib;embree4.lib;opengl32.lib;glfw3.lib;user32.lib;gdi32.lib;shell32.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\Martin\Documents\libraries\embree-4.4.0.x64.windows\lib;C:\Users\Martin\Documents\libraries\glfw-3.4.bin.WIN64\lib-vc2022;D:\junac\Documents\Marrtin\SKOLA\VUT\PGR\assimp\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
