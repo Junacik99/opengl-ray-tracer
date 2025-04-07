@@ -842,7 +842,7 @@ void cpuRayTracer(std::vector<float>& pixelData) {
 					if (useMollerTrumbore)
 						triangle->int_alg = MT;
 					else
-						triangle->int_alg = BARYCENTRIC;
+						triangle->int_alg = EMBREE;
 				}
 
 				// Trace ray
@@ -1192,20 +1192,20 @@ void generateScene3() {
 	auto t = Triangle(origin, origin + glm::vec3(5, 0, 0), origin + glm::vec3(2.5f, -5, 0));
 	scene.shapes.push_back(std::make_unique<Triangle>(t));
 
-	// Add to embree
-	RTCGeometry geom = rtcNewGeometry(g_embreeDevice, RTC_GEOMETRY_TYPE_TRIANGLE);
-	
-	float* vertices = (float*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, 3 * sizeof(float), 3);
-	vertices[0] = t.a.x; vertices[1] = t.a.y; vertices[2] = t.a.z;
-	vertices[3] = t.b.x; vertices[4] = t.b.y; vertices[5] = t.b.z;
-	vertices[6] = t.c.x; vertices[7] = t.c.y; vertices[8] = t.c.z;
+	//// Add geometry to embree
+	//RTCGeometry geom = rtcNewGeometry(g_embreeDevice, RTC_GEOMETRY_TYPE_TRIANGLE);
+	//
+	//float* vertices = (float*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, 3 * sizeof(float), 3);
+	//vertices[0] = t.a.x; vertices[1] = t.a.y; vertices[2] = t.a.z;
+	//vertices[3] = t.b.x; vertices[4] = t.b.y; vertices[5] = t.b.z;
+	//vertices[6] = t.c.x; vertices[7] = t.c.y; vertices[8] = t.c.z;
 
-	unsigned* indices = (unsigned*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, 3 * sizeof(unsigned), 1);
-	indices[0] = 0; indices[1] = 1; indices[2] = 2;
+	//unsigned* indices = (unsigned*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, 3 * sizeof(unsigned), 1);
+	//indices[0] = 0; indices[1] = 1; indices[2] = 2;
 
-	rtcCommitGeometry(geom);
+	/*rtcCommitGeometry(geom);
 	rtcAttachGeometryByID(g_embreeScene, geom, 0);
-	rtcReleaseGeometry(geom);
+	rtcReleaseGeometry(geom);*/
 	rtcCommitScene(g_embreeScene);
 
 
@@ -1216,6 +1216,7 @@ void generateScene3() {
 void initEmbree() {
 	g_embreeDevice = rtcNewDevice(nullptr);
 	g_embreeScene = rtcNewScene(g_embreeDevice);
+	Triangle::setTriangleScene(&g_embreeScene);
 }
 
 void cleanupEmbree() {
