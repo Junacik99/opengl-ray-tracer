@@ -37,6 +37,8 @@ public:
 
 	// Set global scene for triangles;
 	static void setTriangleScene(RTCScene* scene);
+
+	RTCGeometry geometry = nullptr; // Embree geometry
 	
 private:
 	glm::vec3 get_normal(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3);
@@ -47,22 +49,24 @@ Triangle::Triangle(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3)
 	: a(p1), b(p2), c(p3), Plane(get_normal(p1, p2, p3), p1)
 {
 	if (globalScene) {
-		RTCGeometry geom = rtcNewGeometry(rtcGetSceneDevice(*globalScene), RTC_GEOMETRY_TYPE_TRIANGLE);
-		float* vertices = (float*)rtcSetNewGeometryBuffer(
+		auto sceneDevice = rtcGetSceneDevice(*globalScene);
+		RTCGeometry geom = rtcNewGeometry(sceneDevice, RTC_GEOMETRY_TYPE_TRIANGLE);
+		float* vertices = (float*) rtcSetNewGeometryBuffer(
 			geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, 3 * sizeof(float), 3);
 
 		vertices[0] = p1.x; vertices[1] = p1.y; vertices[2] = p1.z;
 		vertices[3] = p2.x; vertices[4] = p2.y; vertices[5] = p2.z;
 		vertices[6] = p3.x; vertices[7] = p3.y; vertices[8] = p3.z;
 
-		unsigned* indices = (unsigned*)rtcSetNewGeometryBuffer(
+		unsigned* indices = (unsigned*) rtcSetNewGeometryBuffer(
 			geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, 3 * sizeof(unsigned), 1);
 
 		indices[0] = 0; indices[1] = 1; indices[2] = 2;
 
-		rtcCommitGeometry(geom);
+		geometry = geom;
+		/*rtcCommitGeometry(geom);
 		rtcAttachGeometry(*globalScene, geom);
-		rtcReleaseGeometry(geom);
+		rtcReleaseGeometry(geom);*/
 
 		// Commit the scene to finalize the geometry
 		//rtcCommitScene(*globalScene);
@@ -184,23 +188,17 @@ inline Intersection Triangle::get_intersection(Ray ray) const {
 
 		rayhit.ray.tnear = 0.0f;
 		rayhit.ray.tfar = std::numeric_limits<float>::infinity();
+		rayhit.ray.mask = -1;
 		rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
 
-		RTCRayQueryContext context;
-		rtcInitRayQueryContext(&context);
-
-		RTCIntersectArguments intersectArgs;
-		rtcInitIntersectArguments(&intersectArgs);
-		intersectArgs.context = &context;
 
 		// Intersect with Embree
-		rtcIntersect1(*globalScene, &rayhit, &intersectArgs);
+		rtcIntersect1(*globalScene, &rayhit);
 
 		// TODO: must be an error here, ray never hits the triangle??
 		if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
 			// Hit
 			glm::vec3 hitPoint = ray.get_start() + ray.get_dir() * rayhit.ray.tfar;
-			std::cout << "Intersection at t = " << rayhit.ray.tfar << std::endl; // TODO: Delete this when it works
 			return Intersection(INNER, hitPoint);
 		}
 		else {

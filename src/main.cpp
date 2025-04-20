@@ -142,6 +142,7 @@ RTCDevice g_embreeDevice = nullptr;
 RTCScene g_embreeScene = nullptr;
 void initEmbree(); 
 void cleanupEmbree(); 
+void errorFunction(void* userPtr, enum RTCError error, const char* str);
 
 
 int main(void)
@@ -1207,6 +1208,9 @@ void generateScene3() {
 	auto t = Triangle(origin, origin + glm::vec3(5, 0, 0), origin + glm::vec3(2.5f, -5, 0));
 	scene.shapes.push_back(std::make_unique<Triangle>(t));
 
+	rtcCommitGeometry(t.geometry);
+	rtcAttachGeometry(g_embreeScene, t.geometry);
+	rtcReleaseGeometry(t.geometry);
 
 	rtcCommitScene(g_embreeScene);
 
@@ -1216,11 +1220,22 @@ void generateScene3() {
 
 void initEmbree() {
 	g_embreeDevice = rtcNewDevice(nullptr);
+	if (!g_embreeDevice)
+		printf("error %d: cannot create device\n", rtcGetDeviceError(NULL));
+
+	rtcSetDeviceErrorFunction(g_embreeDevice, errorFunction, NULL);
+
 	g_embreeScene = rtcNewScene(g_embreeDevice);
+
 	Triangle::setTriangleScene(&g_embreeScene);
 }
 
 void cleanupEmbree() {
 	if (g_embreeScene) rtcReleaseScene(g_embreeScene);
 	if (g_embreeDevice) rtcReleaseDevice(g_embreeDevice);
+}
+
+void errorFunction(void* userPtr, enum RTCError error, const char* str)
+{
+	printf("error %d: %s\n", error, str);
 }
