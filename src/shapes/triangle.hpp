@@ -65,7 +65,7 @@ Triangle::Triangle(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3)
 		rtcReleaseGeometry(geom);
 
 		// Commit the scene to finalize the geometry
-		rtcCommitScene(*globalScene);
+		//rtcCommitScene(*globalScene);
 
 	}
 }
@@ -128,10 +128,44 @@ inline Intersection Triangle::get_intersection(Ray ray) const {
 
 		return baseIntersection;
 	}
+	
 	// Moller-Trumbore
 	else if (int_alg == MT) {
+		glm::vec3 edge1 = b - a;
+		glm::vec3 edge2 = c - a;
+		glm::vec3 pvec = glm::cross(ray.get_dir(), edge2);
+		float det = glm::dot(edge1, pvec);
+
+		// Ray is parallel to triangle
+		if (det > -0.00001 && det < 0.00001) {
+			return Intersection(NONE); 
+		}
+
+		float inv_det = 1.0f / det;
+		glm::vec3 dist = ray.get_start() - a;
+		float u = inv_det * glm::dot(dist, pvec);
+		if (u < 0.0f || u > 1.0f) {
+			return Intersection(NONE);
+		}
+
+		glm::vec3 q = glm::cross(dist, edge1);
+		float v = inv_det * glm::dot(ray.get_dir(), q);
+		if (v < 0.0f || u + v > 1.0f) {
+			return Intersection(NONE);
+		}
+
+		float t = inv_det * glm::dot(edge2, q);
+		// Ray intersection
+		if (t > 0.00001) { 
+			glm::vec3 hitPoint = ray.get_start() + ray.get_dir() * t;
+			return Intersection(INNER, hitPoint);
+		}
+		
+		return Intersection(NONE);
+		
 
 	}
+	
 	// TODO: intel embree check
 	else if (int_alg == EMBREE) {
 		if (globalScene == nullptr) return Intersection(NONE);
@@ -152,13 +186,21 @@ inline Intersection Triangle::get_intersection(Ray ray) const {
 		rayhit.ray.tfar = std::numeric_limits<float>::infinity();
 		rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
 
+		RTCRayQueryContext context;
+		rtcInitRayQueryContext(&context);
+
+		RTCIntersectArguments intersectArgs;
+		rtcInitIntersectArguments(&intersectArgs);
+		intersectArgs.context = &context;
+
 		// Intersect with Embree
-		rtcIntersect1(*globalScene, &rayhit);
+		rtcIntersect1(*globalScene, &rayhit, &intersectArgs);
 
 		// TODO: must be an error here, ray never hits the triangle??
 		if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
 			// Hit
 			glm::vec3 hitPoint = ray.get_start() + ray.get_dir() * rayhit.ray.tfar;
+			std::cout << "Intersection at t = " << rayhit.ray.tfar << std::endl; // TODO: Delete this when it works
 			return Intersection(INNER, hitPoint);
 		}
 		else {
