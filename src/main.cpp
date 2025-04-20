@@ -135,6 +135,7 @@ float lastFrame = 0.0f; // Time of last frame
 int maxBounces = 3;
 bool useFresnel = false;
 bool useBVH = true;
+Intersect_alg intersectionAlgorithm = EMBREE; // Intersection algorithm (BARYCENTRIC, MT, EMBREE)
 
 // Embree device and scene
 RTCDevice g_embreeDevice = nullptr;
@@ -390,6 +391,23 @@ int main(void)
 		ImGui::SliderFloat("Diffuse", &scene.shapes[0]->material.diffuseStrength, 0, 1);
 		ImGui::SliderFloat("Specular", &scene.shapes[0]->material.specularStrength, 0, 1);
 		ImGui::SliderInt("Shininess", &scene.shapes[0]->material.shininess, 0, 100);
+
+		// Dropdown menu for intersection algorithm selection
+		const char* items[] = { "Barycentric", "Moller-Trumbore", "Embree" };
+		const char* currentItem = items[intersectionAlgorithm];
+		if (ImGui::BeginCombo("Intersection algorithm", currentItem)) {
+			for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
+				bool isSelected = (currentItem == items[n]);
+				if (ImGui::Selectable(items[n], isSelected)) {
+					currentItem = items[n];
+					intersectionAlgorithm = static_cast<Intersect_alg>(n);
+				}
+				if (isSelected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
 
 		ImGui::Text("Light");
 		float lightColor[4] = { scene.light.color.r, scene.light.color.g, scene.light.color.b, 1.f };
@@ -839,10 +857,7 @@ void cpuRayTracer(std::vector<float>& pixelData) {
 			for (const auto& shape : scene.shapes) {
 				// Set intersection algorithm for triangles
 				if (auto triangle = dynamic_cast<Triangle*>(shape.get())) {
-					if (useMollerTrumbore)
-						triangle->int_alg = MT;
-					else
-						triangle->int_alg = EMBREE;
+					triangle->int_alg = intersectionAlgorithm;
 				}
 
 				// Trace ray
