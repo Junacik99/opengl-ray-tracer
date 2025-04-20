@@ -374,7 +374,7 @@ int main(void)
 		ImGui::Text("Ray Tracer");
 		ImGui::Text("FPS: %.2f", fps);
 
-		ImGui::Checkbox("RTX ON", &rtxon);
+		/*ImGui::Checkbox("RTX ON", &rtxon);
 		ImGui::SliderInt("Max bounces", &maxBounces, 1, 10);
 		ImGui::Checkbox("Use BVH", &useBVH);
 		ImGui::Checkbox("Fresnel", &useFresnel);
@@ -390,7 +390,7 @@ int main(void)
 		ImGui::SliderFloat("Ambient", &scene.shapes[0]->material.ambientStrength, 0, 1);
 		ImGui::SliderFloat("Diffuse", &scene.shapes[0]->material.diffuseStrength, 0, 1);
 		ImGui::SliderFloat("Specular", &scene.shapes[0]->material.specularStrength, 0, 1);
-		ImGui::SliderInt("Shininess", &scene.shapes[0]->material.shininess, 0, 100);
+		ImGui::SliderInt("Shininess", &scene.shapes[0]->material.shininess, 0, 100);*/
 
 		// Dropdown menu for intersection algorithm selection
 		const char* items[] = { "Barycentric", "Moller-Trumbore", "Embree" };
