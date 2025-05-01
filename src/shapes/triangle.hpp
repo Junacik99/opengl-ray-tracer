@@ -6,12 +6,15 @@
 #include <embree4/rtcore.h>
 #include <embree4/rtcore_ray.h>
 #include <iostream>
+#include <embree4/rtcore_geometry.h>
 
 enum Intersect_alg
 {
 	BARYCENTRIC,
 	MT,
-	EMBREE
+	EMBREE,
+	PLUECKER,
+	WOOP
 };
 
 class Triangle : public Plane
@@ -64,12 +67,6 @@ Triangle::Triangle(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3)
 		indices[0] = 0; indices[1] = 1; indices[2] = 2;
 
 		geometry = geom;
-		/*rtcCommitGeometry(geom);
-		rtcAttachGeometry(*globalScene, geom);
-		rtcReleaseGeometry(geom);*/
-
-		// Commit the scene to finalize the geometry
-		//rtcCommitScene(*globalScene);
 
 	}
 }
@@ -170,7 +167,7 @@ inline Intersection Triangle::get_intersection(Ray ray) const {
 
 	}
 	
-	// TODO: intel embree check
+	// Intel embree check
 	else if (int_alg == EMBREE) {
 		if (globalScene == nullptr) return Intersection(NONE);
 
@@ -189,8 +186,8 @@ inline Intersection Triangle::get_intersection(Ray ray) const {
 		rayhit.ray.tnear = 0.0f;
 		rayhit.ray.tfar = std::numeric_limits<float>::infinity();
 		rayhit.ray.mask = -1;
+		rayhit.ray.flags = 0;
 		rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
-
 
 		// Intersect with Embree
 		rtcIntersect1(*globalScene, &rayhit);
@@ -204,6 +201,49 @@ inline Intersection Triangle::get_intersection(Ray ray) const {
 		else {
 			return Intersection(NONE);
 		}
+	}
+
+	else if (int_alg == PLUECKER) {
+		// Relative ray origin and direction
+		glm::vec3 O = ray.get_start();
+		glm::vec3 D = ray.get_dir();
+
+		// Compute vertices relative to ray origin
+		glm::vec3 v0 = a - O;
+		glm::vec3 v1 = b - O;
+		glm::vec3 v2 = c - O;
+
+		// Compute triangle edge vectors
+		glm::vec3 e0 = v2 - v0;
+		glm::vec3 e1 = v0 - v1;
+		glm::vec3 e2 = v1 - v2;
+
+		// Perform edge tests
+		float U = glm::dot(glm::cross(e0, v2 + v0), D);
+		float V = glm::dot(glm::cross(e1, v0 + v1), D);
+		float W = glm::dot(glm::cross(e2, v1 + v2), D);
+		float UVW = U + V + W;
+		float eps = std::numeric_limits<float>::epsilon() * std::abs(UVW);
+
+		// Without backface culling: accept the hit if all edge tests have one sign (or near zero)
+		if (!((std::min(U, std::min(V, W)) >= -eps) || (std::max(U, std::max(V, W)) <= eps))) {
+			return Intersection(NONE);
+		}
+
+		// Compute a stable triangle normal
+		glm::vec3 Ng = glm::cross(b - a, c - a);
+		float den = 2.0f * glm::dot(Ng, D);
+		if (std::abs(den) < eps) // Parallel ray or degenerate triangle
+			return Intersection(NONE);
+
+		// Compute ray intersection parameter
+		float T_val = 2.0f * glm::dot(v0, Ng);
+		float t = T_val / den;
+		if (t < 0)
+			return Intersection(NONE);
+
+		glm::vec3 hitPoint = O + D * t;
+		return Intersection(INNER, hitPoint);
 	}
 	
 	else {

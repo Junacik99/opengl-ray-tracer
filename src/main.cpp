@@ -303,6 +303,22 @@ int main(void)
 		// Input
 		processInput(window);
 
+		// Rotate camera around world origin
+		if (SCENE == 3) {
+			// Define rotation parameters
+			float radius = 40.0f; // Distance from the origin
+			float speed = 0.5f;   // Rotation speed (radians per second)
+
+			// Calculate the new position based on time
+			float angle = speed * currentFrame; // Angle in radians
+			float camX = radius * cos(angle);
+			float camZ = radius * sin(angle);
+
+			// Update the camera position and make it look at the origin
+			scene.camera.Position = glm::vec3(camX, scene.camera.Position.y, camZ);
+			scene.camera.LookAt(glm::vec3(0.0f, 0.0f, 0.0f));
+		}
+
 		if (!rtxon) { // CPU ray tracing
 			// No fresnel, shadows... Just laggy ray tracing with diffuse colors
 			/***********************************************************************************************/
@@ -394,9 +410,10 @@ int main(void)
 		ImGui::SliderInt("Shininess", &scene.shapes[0]->material.shininess, 0, 100);*/
 
 		// Dropdown menu for intersection algorithm selection
-		const char* items[] = { "Barycentric", "Moller-Trumbore", "Embree" };
+		ImGui::Text("Intersection algorithm");
+		const char* items[] = { "Barycentric", "Moller-Trumbore", "Embree", "Pluecker"};
 		const char* currentItem = items[intersectionAlgorithm];
-		if (ImGui::BeginCombo("Intersection algorithm", currentItem)) {
+		if (ImGui::BeginCombo("alg", currentItem)) {
 			for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
 				bool isSelected = (currentItem == items[n]);
 				if (ImGui::Selectable(items[n], isSelected)) {
@@ -410,15 +427,17 @@ int main(void)
 			ImGui::EndCombo();
 		}
 
-		ImGui::Text("Light");
-		float lightColor[4] = { scene.light.color.r, scene.light.color.g, scene.light.color.b, 1.f };
-		ImGui::ColorEdit4("Color", lightColor);
-		scene.light.color = glm::vec3(lightColor[0], lightColor[1], lightColor[2]);
-		ImGui::SliderFloat("Intensity", &scene.light.intensity, 0, 100);
-		scene.light.updateColor();
-		ImGui::SliderFloat("X pos", &scene.light.position.x, -17, 17);
-		ImGui::SliderFloat("Y pos", &scene.light.position.y, -17, 17);
-		ImGui::SliderFloat("Z pos", &scene.light.position.z, -17, 17);
+		if (SCENE != 3) {
+			ImGui::Text("Light");
+			float lightColor[4] = { scene.light.color.r, scene.light.color.g, scene.light.color.b, 1.f };
+			ImGui::ColorEdit4("Color", lightColor);
+			scene.light.color = glm::vec3(lightColor[0], lightColor[1], lightColor[2]);
+			ImGui::SliderFloat("Intensity", &scene.light.intensity, 0, 100);
+			scene.light.updateColor();
+			ImGui::SliderFloat("X pos", &scene.light.position.x, -17, 17);
+			ImGui::SliderFloat("Y pos", &scene.light.position.y, -17, 17);
+			ImGui::SliderFloat("Z pos", &scene.light.position.z, -17, 17);
+		}
 
 		if (SCENE == 1) {
 			ImGui::Text("Mirror");
@@ -512,20 +531,22 @@ void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-
-	// Camera control
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		scene.camera.ProcessKeyboard(FORWARD, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		scene.camera.ProcessKeyboard(BACKWARD, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		scene.camera.ProcessKeyboard(LEFT, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		scene.camera.ProcessKeyboard(RIGHT, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-		scene.camera.ProcessKeyboard(UP, deltaTime);
-	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-		scene.camera.ProcessKeyboard(DOWN, deltaTime);
+	if (SCENE != 3)
+	{
+		// Camera control
+		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+			scene.camera.ProcessKeyboard(FORWARD, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+			scene.camera.ProcessKeyboard(BACKWARD, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+			scene.camera.ProcessKeyboard(LEFT, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+			scene.camera.ProcessKeyboard(RIGHT, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+			scene.camera.ProcessKeyboard(UP, deltaTime);
+		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+			scene.camera.ProcessKeyboard(DOWN, deltaTime);
+	}
 
 	scene.camera.MovementSpeed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) ? SPEED * SPEEDAMPLIFIER : SPEED;
 
