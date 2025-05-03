@@ -175,13 +175,13 @@ inline vector<Triangle> Mesh::mesh2triangles() {
 
         auto triangle = Triangle(p1, p2, p3);
 
-        float dotProduct = glm::dot(triangle.m_normal, center);
+        //float dotProduct = glm::dot(triangle.m_normal, center);
 
-        // TODO: It is still not right
-        if (dotProduct > 0.0f) {
-            // The triangle is facing towards the center
-            triangle.invert_normal();
-        }
+        //// TODO: It is still not right
+        //if (dotProduct > 0.0f) {
+        //    // The triangle is facing towards the center
+        //    triangle.invert_normal();
+        //}
 
         triangles.push_back(triangle);
     }

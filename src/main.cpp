@@ -43,7 +43,8 @@ glm::vec3 phong(const glm::vec3& point, const glm::vec3& normal, const glm::vec3
 void generateScene1();	// Generate scene with monkeys
 void generateScene2();	// A scene with the car
 void generateScene3();	// Triangle
-int SCENE = 3;			// 1 - monkeys | 2 - car | 3 - Triangle
+void generateScene4();	// Car
+int SCENE = 4;			// 1 - monkeys | 2 - car | 3 - Triangle
 
 // Animate objects
 void bounceSphere(Sphere* sphere, float elapsedTime, float amplitude, float frequency);
@@ -113,7 +114,7 @@ struct Wheel {
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
-bool rtxon = false;					// Use GPU (true) or CPU ray-tracing
+bool rtxon = true;					// Use GPU (true) or CPU ray-tracing
 bool animate = false;				// Animate certain objects
 bool useMollerTrumbore = false;		// For triangle intersection checks
 
@@ -135,7 +136,7 @@ float lastFrame = 0.0f; // Time of last frame
 int maxBounces = 3;
 bool useFresnel = false;
 bool useBVH = true;
-Intersect_alg intersectionAlgorithm = EMBREE; // Intersection algorithm (BARYCENTRIC, MT, EMBREE)
+Intersect_alg intersectionAlgorithm = PLUECKER; // Intersection algorithm (BARYCENTRIC, MT, EMBREE, PLUECKER)
 
 // Embree device and scene
 RTCDevice g_embreeDevice = nullptr;
@@ -210,6 +211,7 @@ int main(void)
 	case 1: generateScene1(); break;
 	case 2: generateScene2(); break;
 	case 3: generateScene3(); break;
+	case 4: generateScene4(); break;
 	default:
 		generateScene1();
 		break;
@@ -287,6 +289,11 @@ int main(void)
 	ImGui_ImplOpenGL3_Init("#version 430");
 
 
+	const int endFrame = 120;
+	int frameCount = 0;
+	float frameTimes[endFrame] = { 0.0f };
+
+
 	/* Render loop */
 	while (!glfwWindowShouldClose(window)) {
 		// Init gui
@@ -300,14 +307,20 @@ int main(void)
 
 		float fps = 1.f / deltaTime;
 
+		/*frameTimes[frameCount] = fps;
+		frameCount++;
+		if (frameCount >= endFrame) {
+			break;
+		}*/
+
 		// Input
 		processInput(window);
 
 		// Rotate camera around world origin
-		if (SCENE == 3) {
+		if (SCENE == 4) {
 			// Define rotation parameters
 			float radius = 40.0f; // Distance from the origin
-			float speed = 0.5f;   // Rotation speed (radians per second)
+			float speed = 1.f;   // Rotation speed (radians per second)
 
 			// Calculate the new position based on time
 			float angle = speed * currentFrame; // Angle in radians
@@ -376,6 +389,20 @@ int main(void)
 			computeShaderGPU.setBool("useBVH", useBVH);
 			computeShaderGPU.setBool("useFresnel", useFresnel);
 			computeShaderGPU.setBool("useMollerTrumbore", useMollerTrumbore);
+			switch (intersectionAlgorithm) {
+			case BARYCENTRIC:
+				computeShaderGPU.setInt("triIntersectionAlg", 0);
+				break;
+			case MT:
+				computeShaderGPU.setInt("triIntersectionAlg", 1);
+				break;
+			case EMBREE:
+				computeShaderGPU.setInt("triIntersectionAlg", 2);
+				break;
+			case PLUECKER:
+				computeShaderGPU.setInt("triIntersectionAlg", 3);
+				break;
+			}
 
 			// Render image to quad
 			glClearColor(0, 0, 0, 1.f);
@@ -391,8 +418,8 @@ int main(void)
 		ImGui::Text("Ray Tracer");
 		ImGui::Text("FPS: %.2f", fps);
 
-		/*ImGui::Checkbox("RTX ON", &rtxon);
-		ImGui::SliderInt("Max bounces", &maxBounces, 1, 10);
+		ImGui::Checkbox("RTX ON", &rtxon);
+		/*ImGui::SliderInt("Max bounces", &maxBounces, 1, 10);
 		ImGui::Checkbox("Use BVH", &useBVH);
 		ImGui::Checkbox("Fresnel", &useFresnel);
 		ImGui::Checkbox("Animate", &animate);
@@ -427,7 +454,8 @@ int main(void)
 			ImGui::EndCombo();
 		}
 
-		if (SCENE != 3) {
+		//if (SCENE != 3) 
+		{
 			ImGui::Text("Light");
 			float lightColor[4] = { scene.light.color.r, scene.light.color.g, scene.light.color.b, 1.f };
 			ImGui::ColorEdit4("Color", lightColor);
@@ -481,6 +509,17 @@ int main(void)
 		glfwPollEvents();
 	}
 
+	/*std::ofstream outFile("frame_timesGPU-pluecker.txt");
+	if (outFile.is_open()) {
+		for (float frame : frameTimes) {
+			outFile << frame << "\n";
+		}
+		outFile.close();
+	}
+	else {
+		std::cerr << "Failed to open file for writing frame times." << std::endl;
+	}*/
+
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
@@ -531,7 +570,7 @@ void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	if (SCENE != 3)
+	if (SCENE != 3 && SCENE != 4)
 	{
 		// Camera control
 		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -1224,10 +1263,16 @@ void generateScene3() {
 	// add light
 	scene.light = Light(glm::vec3(14.8f, -17, 17), glm::vec3(1), 26);
 
-	auto origin = glm::vec3(0, 0, 0);
+	auto origin = glm::vec3(0, 0, -5);
 
 	auto t = Triangle(origin, origin + glm::vec3(5, 0, 0), origin + glm::vec3(2.5f, -5, 0));
 	scene.shapes.push_back(std::make_unique<Triangle>(t));
+	scene.shapes[scene.shapes.size() - 1]->material.color = glm::vec3(0.19f, 0.66f, 0.32f);
+	scene.shapes[scene.shapes.size() - 1]->material.fresnelStrength = 1;
+	scene.shapes[scene.shapes.size() - 1]->material.ambientStrength = 0.06f;
+	scene.shapes[scene.shapes.size() - 1]->material.diffuseStrength = 0.06f;
+	scene.shapes[scene.shapes.size() - 1]->material.specularStrength = 0.5f;
+
 
 	rtcCommitGeometry(t.geometry);
 	rtcAttachGeometry(g_embreeScene, t.geometry);
@@ -1236,6 +1281,11 @@ void generateScene3() {
 	rtcCommitScene(g_embreeScene);
 
 	scene.camera.LookAt(origin);
+
+	int i = buildBVH(25);
+	std::cout << "result: " << i << std::endl;
+
+	std::cout << "shapes: " << scene.shapes.size() << std::endl;
 
 }
 
@@ -1259,4 +1309,84 @@ void cleanupEmbree() {
 void errorFunction(void* userPtr, enum RTCError error, const char* str)
 {
 	printf("error %d: %s\n", error, str);
+}
+
+void generateScene4() {
+	// Camera 
+	scene.camera = Camera();
+	scene.camera.Position = glm::vec3(0, -10.0f, 40);
+	scene.camera.aspectRatio = float(WIDTH) / HEIGHT;
+
+	// add light
+	scene.light = Light(glm::vec3(14.8f, -17, 17), glm::vec3(1), 26);
+
+	// 3D Model
+	glm::vec3 origin(0, 0, 0);
+	auto model = Model("models/car.obj");
+	for (int i = 0; i < model.meshes.size(); ++i)
+	{
+		auto mesh = model.meshes[i];
+		mesh.origin = origin;
+
+		Material material;
+		switch (i)
+		{
+		case 0: // Car
+			material.color = glm::vec3(19.f / 255, 7.f / 255, 92.f / 255);
+			material.specularStrength = 0;
+			break;
+		case 1: // Wheels
+		case 2:
+		case 3:
+		case 4:
+			material.color = glm::vec3(.2f, .2f, .2f);
+			material.specularStrength = 0;
+			break;
+		case 5: // Road
+			material.color = glm::vec3(0);
+			material.specularStrength = .25f;
+			break;
+		default:
+			break;
+		}
+
+		glm::vec3 wheelCenter(0);
+
+		auto meshTriangles = mesh.mesh2triangles();
+		for (int j = 0; j < meshTriangles.size(); ++j) {
+			int idx = scene.shapes.size();
+			auto triangle = meshTriangles[j];
+			triangle.invert_normal();
+			//scene.shapes.push_back(std::make_unique<Triangle>(triangle.a, triangle.b, triangle.c));
+			scene.shapes.push_back(std::make_unique<Triangle>(triangle));
+			scene.shapes[idx]->material = material;
+
+			if (i >= 1 && i <= 4) {
+				wheels[i - 1].shapeIndices.push_back(idx);
+				scene.shapes[idx]->animated = true;
+				animatedIndices.push_back(idx);
+
+				wheelCenter += triangle.a;
+				wheelCenter += triangle.b;
+				wheelCenter += triangle.c;
+			}
+		}
+		std::cout << "Triangles added: " << meshTriangles.size() << std::endl;
+
+		if (i >= 1 && i <= 4) {
+			wheels[i - 1].rotationAxis = glm::vec3(0, 0, 1);
+			wheelCenter /= static_cast<float>(meshTriangles.size() * 3);
+			wheels[i - 1].center = wheelCenter;
+		}
+
+
+	}
+
+	scene.camera.LookAt(origin);
+
+	// BVH
+	int i = buildBVH(25);
+	std::cout << "result: " << i << std::endl;
+
+	std::cout << "shapes: " << scene.shapes.size() << std::endl;
 }

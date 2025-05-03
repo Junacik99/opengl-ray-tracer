@@ -128,6 +128,7 @@ uniform int maxBounces;
 uniform bool useBVH;
 uniform bool useFresnel;
 uniform bool useMollerTrumbore;
+uniform int triIntersectionAlg;
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Functions
@@ -199,14 +200,12 @@ Intersection getIntersectionTriangle_Barycentric(Shape shape, Ray ray){
         
         // Base intersection with plane
         float np = dot(shape.planeNormal, ray.dir);
-        if (np == 0) return intersection;
+        if (np < 1e-5) return intersection;
 
         float t = -(shape.planeD + dot(shape.planeNormal, ray.start)) / np;
         if (t > 0){
-            intersection.intersect_type = (np > 0) ? INNER : OUTER;
+            intersection.intersect_type = (np > 1e-5) ? INNER : OUTER;
             intersection.hit_point = getPointFromRay(ray, t);
-            // If OUTER, return. Change in case of refractions
-            if (np <= 0) return intersection; 
         }
         else {
             return intersection;
@@ -238,6 +237,43 @@ Intersection getIntersectionTriangle_Barycentric(Shape shape, Ray ray){
 
         return intersection;
 };
+
+Intersection getIntersectionTriangle_Pluecker(Shape shape, Ray ray) {
+    Intersection intersection;
+    intersection.intersect_type = NONE;
+
+    vec3 O = ray.start;
+    vec3 D = ray.dir;
+
+    vec3 v0 = shape.triP1 - O;
+    vec3 v1 = shape.triP2 - O;
+    vec3 v2 = shape.triP3 - O;
+
+    vec3 e0 = v2 - v0;
+    vec3 e1 = v0 - v1;
+    vec3 e2 = v1 - v2;
+
+    float U = dot(cross(e0, v2 + v0), D);
+    float V = dot(cross(e1, v0 + v1), D);
+    float W = dot(cross(e2, v1 + v2), D);
+
+    float UVW = U + V + W;
+    float eps = 1e-5;
+
+    if (!((min(U, min(V, W)) >= -eps) || (max(U, max(V, W)) <= eps))) return intersection;
+
+    vec3 Ng = cross(shape.triP2 - shape.triP1, shape.triP3 - shape.triP1);
+    float den = 2 * dot(Ng, D);
+    if (abs(den) < eps) return intersection;
+
+    float t = 2 * dot(Ng, v0) / den;
+    if (t < 0) return intersection;
+
+    vec3 hitPoint = O + t * D;
+    intersection.intersect_type = INNER;
+    intersection.hit_point = hitPoint;
+    return intersection;
+}
 
 Intersection get_intersection(Shape shape, Ray ray){
     Intersection intersection;
@@ -316,11 +352,17 @@ Intersection get_intersection(Shape shape, Ray ray){
     }
     else if (shape.type == 3){ // Triangle
 
-        if (useMollerTrumbore) {
+        if (triIntersectionAlg == 0) {
+            intersection = getIntersectionTriangle_Barycentric(shape, ray);
+        }
+        else if (triIntersectionAlg == 1) {
             intersection = getIntersectionTriangle_MollerTrumbore(shape, ray);
         }
-        else {
-            intersection = getIntersectionTriangle_Barycentric(shape, ray);
+        else if (triIntersectionAlg == 3) {
+            intersection = getIntersectionTriangle_Pluecker(shape, ray);
+        }
+        else  {
+           
         }
     }
 
@@ -460,6 +502,9 @@ void main() {
             // Use hit data
             vec3 hitPoint = hit.hit_point;
             vec3 hitNormal = hit.hit_normal;
+            if (triIntersectionAlg > 0) {
+                hitNormal = -hitNormal;
+            }
             Material hitMaterial = hit.hit_material;
             vec3 hitColor = hit.hit_material.color;
 
@@ -572,7 +617,7 @@ void main() {
                 if (shadowHit.intersect_type == INNER) {
                     float lightDist = distance(light.position, hitPoint);
                     float hitDist = distance(shadowRay.start, shadowHit.hit_point);
-                    if(hitDist < lightDist){
+                    if (hitDist < lightDist){
                         inShadow = true;
                         break;
                     }
